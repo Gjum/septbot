@@ -13,6 +13,7 @@ const client = new Discord.Client();
     }
 }} */
 const config = require("./resources/config.json");
+const { pathToFileURL } = require('url');
 const config_type = config.septbot;
 
 const channel_local_id = '769382925283098634';
@@ -33,6 +34,7 @@ let bot = mineflayer.createBot(options);
 bindEvents(bot);
 
 let nextChatTs = 0;
+/** @param {string} msg */
 function sendChat(msg) {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
@@ -59,16 +61,22 @@ client.on('message', message => {
         message.react('❌');
         return;
     }
-    let clean_message = message.content.replace('§','')
+    let clean_lines = message.content.replace('§','').split('\n')
     if (message.channel.id === channel_local.id) {
-        sendChat(`${message.author.username}: ${clean_message}`)
+        for (const clean_line of clean_lines) {
+            sendChat(`${message.author.username}: ${clean_line}`)
+        }
     } else if (message.channel.id === channel_global.id) {
-        sendChat(`/g ! ${message.author.username}: ${clean_message}`)
+        for (const clean_line of clean_lines) {
+            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
+        }
         message.react('✅');
     }
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
         if (line.split(" ")[0] === message.channel.id ) {
-            sendChat(`/tell ${line.split(" ")[1]} ${clean_message}`)
+            for (const clean_line of clean_lines) {
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
+            }
         }
     })
 })
