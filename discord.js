@@ -29,6 +29,15 @@ var options = {
 let bot = mineflayer.createBot(options);
 bindEvents(bot);
 
+let nextChatTs = 0;
+function sendChat(msg) {
+    const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
+    nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
+    setTimeout(() => {
+        if (bot) bot.chat(msg)
+    }, thisChatTimeout)
+}
+
 let channel_local, channel_global;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
@@ -45,9 +54,9 @@ client.on('message', message => {
     }
     let clean_message = message.content.replace('§','')
     if (message.channel.id === channel_local.id) {
-        bot.chat(`${message.author.username}: ${clean_message}`)
+        sendChat(`${message.author.username}: ${clean_message}`)
     } else if (message.channel.id === channel_global.id) {
-        bot.chat(`/g ! ${message.author.username}: ${clean_message}`)
+        sendChat(`/g ! ${message.author.username}: ${clean_message}`)
         message.react('✅');
     }
 })
@@ -61,7 +70,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
     if(oldUserChannel === null && newUserChannel != null) {
         // todo : Spam protection for repeated reconnections
         if (!newMember.member.user.bot) {
-            bot.chat(`[${newMember.member.user.username} joined voicechat!]`)
+            sendChat(`[${newMember.member.user.username} joined voicechat!]`)
         }
     }
 })
