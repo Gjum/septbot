@@ -81,6 +81,14 @@ client.on('message', message => {
     })
 })
 
+client.on('message', message => {
+    if (message.channel.type !== "text") return
+    if (message.author.bot) return
+
+    if (/dr[-_. ]*o[-_. ]*racle?/i.test(message.content))
+        message.channel.send('Roleplay detected');
+})
+
 client.on('voiceStateUpdate', (oldMember, newMember) => {
     let newUserChannel = newMember.channel
     let oldUserChannel = oldMember.channel
