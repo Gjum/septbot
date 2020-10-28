@@ -17,8 +17,9 @@ const config_type = config.septbot;
 
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
-const relay_category_id = '770391959432593458'
-const vcs_to_relay = [742831212711772265]
+const relay_category_id = '770391959432593458';
+const vcs_to_relay = [742831212711772265];
+
 
 var options = {
     host: "mc.civclassic.com",
@@ -27,11 +28,6 @@ var options = {
     password: config_type.password,
     version: "1.16.1",
 };
-
-// todo :
-// Auto delete relay channels which have not had activity in X days.
-// allow arbitrary DM's
-// https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/frequently-asked-questions.md
 
 let bot = mineflayer.createBot(options);
 bindEvents(bot);
@@ -72,7 +68,7 @@ client.on('message', message => {
     }
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
         if (line.split(" ")[0] === message.channel.id ) {
-            bot.chat(`/tell ${line.split(" ")[1]} ${clean_message}`)
+            sendChat(`/tell ${line.split(" ")[1]} ${clean_message}`)
         }
     })
 })
@@ -108,8 +104,8 @@ function bindEvents(bot) {
         console.log("Bot has ended");
         fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
             let player_channel = client.channels.cache.get(line.split(" ")[0]);
-            if (player_channel != undefined && player_channel.name .includes("🟢")) {
-                let sanitized_username = line.split[1].toLowerCase().replace(/[^a-z\d-]/,"");
+            if (player_channel != undefined && player_channel.name.includes("🟢")) {
+                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/,"");
                 player_channel.setName(sanitized_username)
             }
         })
