@@ -2,7 +2,7 @@ const Discord = require('discord.js');
 const { Util } = require('discord.js');
 const fs = require('fs');
 const mineflayer = require('mineflayer');
-
+const prefix = '~'
 const client = new Discord.Client();
 
 /** @type {{
@@ -22,10 +22,9 @@ const channel_snitch_id = '770102737530388510';
 const relay_category_id = '770091510523494420';
 const vcs_to_relay = [742831212711772265];
 
-var snitch_activity = require('./resources/snitch_activity.json')
 var options = {
     host: "localhost",
-    port: 57670,
+    port: 62591,
     username: config_type.username,
     version: "1.16.1",
 };
@@ -52,10 +51,39 @@ client.on('ready', () => {
     relay_category = client.channels.cache.get(relay_category_id);
 })
 
-client.on('message', message => {
+client.on('message', async message => {
+    if (message.content[0] === prefix) {
+        let args = message.content.replace("~", "").split(" ");
+        switch (args[0]) {
+            case 'snitchreport':
+                let snitch_activity = [];
+                //todo : Can't request more logs than available
+                if (args[1] % 100 > 0) {
+                    var messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
+                }
+                if (args[1] > 100) {
+                    do {
+                        let lastId = messages[0][0];
+                        let moreMessages = Array.from(await channel_snitch.messages.fetch({ limit: 100, before: lastId }))
+                        messages = moreMessages.concat(messsages)
+                    } while (messages.length < args[1]);
+                }
+                messages.forEach(log => {
+                    if (log[1].author.id === '214874419301056512') {
+                        clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
+                        snitch_activity.push([log[1].createdAt, clean_log[2], clean_log[3] + clean_log[4]]);
+                    }
+                })
+                message.channel.send(`Collected ${snitch_activity.length} snitch logs, from ${snitch_activity[snitch_activity.length - 1][0]}`)
+                console.log(snitch_activity)
+                fs.writeFileSync('resources/snitch_activity.json', snitch_activity);
+                break;
+        }
+        return;
+    }
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
         && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.channel.id !== channel_snitch.id)) {
-        return
+        return;
     }
     if (message.author.id === client.user.id) return
     if (message.content.length > 600) {
@@ -72,19 +100,6 @@ client.on('message', message => {
             sendChat(`/g ! ${message.author.username}: ${clean_line}`)
         }
         message.react('✅');
-    } else if (message.channel.id === channel_snitch.id && message.author.id === '214874419301056512') {
-        let log = message.content.replace(/([*`])|( is at)/g, "").split(" ");
-        if (log[2] in snitch_activity) {
-            if (log[3] + log[4] in snitch_activity[log[2]]) {
-                snitch_activity[log[2]][log[3] + log[4]]++;
-            } else {
-                snitch_activity[log[2]][log[3] + log[4]] = 1;
-            }
-        } else {
-            snitch_activity[log[2]] = {};
-            snitch_activity[log[2]][log[3] + log[4]] = 1
-        }
-        fs.writeFileSync('resources/snitch_activity.json', JSON.stringify(snitch_activity));
     }
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
