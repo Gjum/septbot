@@ -16,17 +16,17 @@ const config = require("./resources/config.json");
 const { pathToFileURL } = require('url');
 const config_type = config.septbot;
 
-const channel_local_id = '769382925283098634';
-const channel_global_id = '769409279496421386';
-const relay_category_id = '770391959432593458';
+const channel_local_id = '770091510523494420';
+const channel_global_id = '770091510523494420';
+const channel_snitch_id = '770102737530388510';
+const relay_category_id = '770091510523494420';
 const vcs_to_relay = [742831212711772265];
 
-
+var snitch_activity = require('./resources/snitch_activity.json')
 var options = {
-    host: "mc.civclassic.com",
-    port: 25565,
+    host: "localhost",
+    port: 57670,
     username: config_type.username,
-    password: config_type.password,
     version: "1.16.1",
 };
 
@@ -43,25 +43,26 @@ function sendChat(msg) {
     }, thisChatTimeout)
 }
 
-let channel_local, channel_global, relay_category;
+let channel_local, channel_global, relay_category, channel_snitch;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
     channel_local = client.channels.cache.get(channel_local_id);
     channel_global = client.channels.cache.get(channel_global_id);
+    channel_snitch = client.channels.cache.get(channel_snitch_id);
     relay_category = client.channels.cache.get(relay_category_id);
 })
 
 client.on('message', message => {
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-    && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
-            return
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.channel.id !== channel_snitch.id)) {
+        return
     }
     if (message.author.id === client.user.id) return
     if (message.content.length > 600) {
         message.react('❌');
         return;
     }
-    let clean_lines = message.content.replace('§','').split('\n')
+    let clean_lines = message.content.replace('§', '').split('\n')
     if (message.channel.id === channel_local.id) {
         for (const clean_line of clean_lines) {
             sendChat(`${message.author.username}: ${clean_line}`)
@@ -71,9 +72,22 @@ client.on('message', message => {
             sendChat(`/g ! ${message.author.username}: ${clean_line}`)
         }
         message.react('✅');
+    } else if (message.channel.id === channel_snitch.id && message.author.id === '214874419301056512') {
+        let log = message.content.replace(/([*`])|( is at)/g, "").split(" ");
+        if (log[2] in snitch_activity) {
+            if (log[3] + log[4] in snitch_activity[log[2]]) {
+                snitch_activity[log[2]][log[3] + log[4]]++;
+            } else {
+                snitch_activity[log[2]][log[3] + log[4]] = 1;
+            }
+        } else {
+            snitch_activity[log[2]] = {};
+            snitch_activity[log[2]][log[3] + log[4]] = 1
+        }
+        fs.writeFileSync('resources/snitch_activity.json', JSON.stringify(snitch_activity));
     }
-    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
-        if (line.split(" ")[0] === message.channel.id ) {
+    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+        if (line.split(" ")[0] === message.channel.id) {
             for (const clean_line of clean_lines) {
                 sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
             }
@@ -87,7 +101,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
     if (newUserChannel !== null && !vcs_to_relay.includes(parseInt(newUserChannel.id))) {
         return;
     }
-    if(oldUserChannel === null && newUserChannel != null) {
+    if (oldUserChannel === null && newUserChannel != null) {
         // todo : Spam protection for repeated reconnections
         if (!newMember.member.user.bot) {
             sendChat(`[${newMember.member.user.username} joined voicechat!]`)
@@ -99,7 +113,7 @@ client.login(config_type.client_token)
 
 function bindEvents(bot) {
 
-    bot.on('error', function(err) {
+    bot.on('error', function (err) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
         if (err.code === undefined) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
@@ -108,19 +122,19 @@ function bindEvents(bot) {
         }
     });
 
-    bot.on('end', function() {
+    bot.on('end', function () {
         console.log("Bot has ended");
-        fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
+        fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
             let player_channel = client.channels.cache.get(line.split(" ")[0]);
             if (player_channel != undefined && player_channel.name.includes("🟢")) {
-                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/,"");
+                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/, "");
                 player_channel.setName(sanitized_username)
             }
         })
         setTimeout(relog, 6 * 1000);
     });
 
-    bot.on('message', async(jsonMsg, position) => {
+    bot.on('message', async (jsonMsg, position) => {
         let group_chat = jsonMsg.toString().match(/\[(\S+)\] (\S+): (.+)/)
         let local_chat = jsonMsg.toString().match(/^<(\S+)> (.+)/);
         let death_message = jsonMsg.toString().match(/^(\S+) was killed by (\S+) (?:with ){1,2}(.+)/);
@@ -140,10 +154,10 @@ function bindEvents(bot) {
         } else if (death_message) {
             channel_local.send(`**${death_message[1]}** was killed by **${death_message[2]}** with ${death_message[3]}`);
         } else if (new_player) {
-            let sanitized_username = new_player[1].toLowerCase().replace(/[^a-z\d-]/,"");
+            let sanitized_username = new_player[1].toLowerCase().replace(/[^a-z\d-]/, "");
             let channel_options = {
                 topic: 'A channel to message ' + new_player[1],
-                parent : relay_category,
+                parent: relay_category,
             }
             let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
             let prompt;
@@ -158,18 +172,18 @@ function bindEvents(bot) {
             await new_channel.send(`\`${prompt}\``);
             fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + new_player[1] + "\n");
         } else if (private_message) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
-                if (line.split(" ")[1] ===  private_message[1]) {
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+                if (line.split(" ")[1] === private_message[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     player_channel.send(`[**${private_message[1]}**] ${Util.removeMentions(private_message[2])}`);
                 }
             })
         } else if (joined_game) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === joined_game[1]) {
                     console.log("matching");
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
-                    let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/,"");
+                    let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
                     //console.log(player_channel.name);
                     //player_channel.setName("bingus")
                     player_channel.send(joined_game[0])
@@ -177,10 +191,10 @@ function bindEvents(bot) {
                 }
             })
         } else if (left_game) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
-                if (line.split(" ")[1] ===  left_game[1]) {
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+                if (line.split(" ")[1] === left_game[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
-                    let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/,"");
+                    let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
                     console.log("left game")
                     player_channel.send(left_game[0])
                     player_channel.setName(sanitized_username)
@@ -196,8 +210,8 @@ function relog() {
     bindEvents(bot);
 }
 
-function getRandomLine(filename){
+function getRandomLine(filename) {
     var data = fs.readFileSync(filename, "utf8");
     var lines = data.split('\n');
-    return lines[Math.floor(Math.random()*lines.length)];
+    return lines[Math.floor(Math.random() * lines.length)];
 }
