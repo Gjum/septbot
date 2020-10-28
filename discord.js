@@ -1,30 +1,39 @@
-const Discord = require('discord.js')
-const { Util } = require('discord.js')
-const client = new Discord.Client()
-config = require("./resources/config.json");
-config_type = config.septbot;
+const Discord = require('discord.js');
+const { Util } = require('discord.js');
+const mineflayer = require('mineflayer');
 
-let channel_local = '769382925283098634';
-let channel_global = '769409279496421386';
-let vcs_to_relay = [742831212711772265]
+const client = new Discord.Client();
 
-const mineflayer = require('mineflayer')
+/** @type {{
+  "septbot" : {
+    "client_token": string,
+    "username": string,
+    "password": string,
+  }
+}} */
+const config = require("./resources/config.json");
+const config_type = config.septbot;
+
+const channel_local_id = '769382925283098634';
+const channel_global_id = '769409279496421386';
+const vcs_to_relay = [742831212711772265];
 
 var options = {
     host: "mc.civclassic.com",
     port: 25565,
     username: config_type.username,
     password: config_type.password,
-    version: "1.16.1"
+    version: "1.16.1",
 };
 
 let bot = mineflayer.createBot(options);
 bindEvents(bot);
 
+let channel_local, channel_global;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
-    channel_local = client.channels.cache.get(channel_local);
-    channel_global = client.channels.cache.get(channel_global);
+    channel_local = client.channels.cache.get(channel_local_id);
+    channel_global = client.channels.cache.get(channel_global_id);
 })
 
 client.on('message', message => {
