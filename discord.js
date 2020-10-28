@@ -1,39 +1,52 @@
-// Quick poorly made bot for relaying chat
-const Discord = require('discord.js')
-const { Util } = require('discord.js')
-const client = new Discord.Client()
-const fs = require('fs');
-config = require("./resources/config.json");
-config_type = config.septbot;
+const fs = require("fs");
+const Discord = require('discord.js');
+const { Util } = require('discord.js');
+const mineflayer = require('mineflayer');
 
-let channel_local = '769382925283098634';
-let channel_global = '769409279496421386';
-let relay_category = '770391959432593458'
-let vcs_to_relay = [742831212711772265]
+const client = new Discord.Client();
 
-const mineflayer = require('mineflayer')
+/** @type {{
+  "septbot" : {
+    "client_token": string,
+    "username": string,
+    "password": string,
+  }
+}} */
+const config = require("./resources/config.json");
+const config_type = config.septbot;
+
+const channel_local_id = '769382925283098634';
+const channel_global_id = '769409279496421386';
+const relay_category_id = '770391959432593458';
+const vcs_to_relay = [742831212711772265];
+
 
 var options = {
     host: "mc.civclassic.com",
     port: 25565,
     username: config_type.username,
     password: config_type.password,
-    version: "1.16.1"
+    version: "1.16.1",
 };
-
-// todo :
-// Auto delete relay channels which have not had activity in X days.
-// allow arbitrary DM's
-// https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/frequently-asked-questions.md
 
 let bot = mineflayer.createBot(options);
 bindEvents(bot);
 
+let nextChatTs = 0;
+function sendChat(msg) {
+    const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
+    nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
+    setTimeout(() => {
+        if (bot) bot.chat(msg)
+    }, thisChatTimeout)
+}
+
+let channel_local, channel_global, relay_category;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
-    channel_local = client.channels.cache.get(channel_local);
-    channel_global = client.channels.cache.get(channel_global);
-    relay_category = client.channels.cache.get(relay_category)
+    channel_local = client.channels.cache.get(channel_local_id);
+    channel_global = client.channels.cache.get(channel_global_id);
+    relay_category = client.channels.cache.get(relay_category_id);
 })
 
 client.on('message', message => {
@@ -48,14 +61,14 @@ client.on('message', message => {
     }
     let clean_message = message.content.replace('§','')
     if (message.channel.id === channel_local.id) {
-        bot.chat(`${message.author.username}: ${clean_message}`)
+        sendChat(`${message.author.username}: ${clean_message}`)
     } else if (message.channel.id === channel_global.id) {
-        bot.chat(`/g ! ${message.author.username}: ${clean_message}`)
+        sendChat(`/g ! ${message.author.username}: ${clean_message}`)
         message.react('✅');
     }
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
         if (line.split(" ")[0] === message.channel.id ) {
-            bot.chat(`/tell ${line.split(" ")[1]} ${clean_message}`)
+            sendChat(`/tell ${line.split(" ")[1]} ${clean_message}`)
         }
     })
 })
@@ -69,7 +82,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
     if(oldUserChannel === null && newUserChannel != null) {
         // todo : Spam protection for repeated reconnections
         if (!newMember.member.user.bot) {
-            bot.chat(`[${newMember.member.user.username} joined voicechat!]`)
+            sendChat(`[${newMember.member.user.username} joined voicechat!]`)
         }
     }
 })
@@ -91,8 +104,8 @@ function bindEvents(bot) {
         console.log("Bot has ended");
         fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
             let player_channel = client.channels.cache.get(line.split(" ")[0]);
-            if (player_channel != undefined && player_channel.name .includes("🟢")) {
-                let sanitized_username = line.split[1].toLowerCase().replace(/[^a-z\d-]/,"");
+            if (player_channel != undefined && player_channel.name.includes("🟢")) {
+                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/,"");
                 player_channel.setName(sanitized_username)
             }
         })
