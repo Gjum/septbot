@@ -1,30 +1,48 @@
-const Discord = require('discord.js')
-const { Util } = require('discord.js')
-const client = new Discord.Client()
-config = require("./resources/config.json");
-config_type = config.septbot;
+const Discord = require('discord.js');
+const { Util } = require('discord.js');
+const mineflayer = require('mineflayer');
 
-let channel_local = '769382925283098634';
-let channel_global = '769409279496421386';
-let vcs_to_relay = [742831212711772265]
+const client = new Discord.Client();
 
-const mineflayer = require('mineflayer')
+/** @type {{
+  "septbot" : {
+    "client_token": string,
+    "username": string,
+    "password": string,
+  }
+}} */
+const config = require("./resources/config.json");
+const config_type = config.septbot;
+
+const channel_local_id = '769382925283098634';
+const channel_global_id = '769409279496421386';
+const vcs_to_relay = [742831212711772265];
 
 var options = {
     host: "mc.civclassic.com",
     port: 25565,
     username: config_type.username,
     password: config_type.password,
-    version: "1.16.1"
+    version: "1.16.1",
 };
 
 let bot = mineflayer.createBot(options);
 bindEvents(bot);
 
+let nextChatTs = 0;
+function sendChat(msg) {
+    const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
+    nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
+    setTimeout(() => {
+        if (bot) bot.chat(msg)
+    }, thisChatTimeout)
+}
+
+let channel_local, channel_global;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
-    channel_local = client.channels.cache.get(channel_local);
-    channel_global = client.channels.cache.get(channel_global);
+    channel_local = client.channels.cache.get(channel_local_id);
+    channel_global = client.channels.cache.get(channel_global_id);
 })
 
 client.on('message', message => {
@@ -36,9 +54,9 @@ client.on('message', message => {
     }
     let clean_message = message.content.replace('§','')
     if (message.channel.id === channel_local.id) {
-        bot.chat(`${message.author.username}: ${clean_message}`)
+        sendChat(`${message.author.username}: ${clean_message}`)
     } else if (message.channel.id === channel_global.id) {
-        bot.chat(`/g ! ${message.author.username}: ${clean_message}`)
+        sendChat(`/g ! ${message.author.username}: ${clean_message}`)
         message.react('✅');
     }
 })
@@ -52,7 +70,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
     if(oldUserChannel === null && newUserChannel != null) {
         // todo : Spam protection for repeated reconnections
         if (!newMember.member.user.bot) {
-            bot.chat(`[${newMember.member.user.username} joined voicechat!]`)
+            sendChat(`[${newMember.member.user.username} joined voicechat!]`)
         }
     }
 })
