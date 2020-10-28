@@ -1,0 +1,14 @@
+{
+  "name": "septbot",
+  "version": "1.0.0",
+  "description": "Mt. September Discord bot",
+  "main": "discord.js",
+  "repository": "git@github.com:squareblob/septbot.git",
+  "author": "Squareblob",
+  "license": "All Rights Reserved",
+  "private": true,
+  "dependencies": {
+    "discord.js": "^12.4.1",
+    "mineflayer": "^2.32.0"
+  }
+}
