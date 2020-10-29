@@ -33,15 +33,22 @@ var options = {
 };
 
 let bot = mineflayer.createBot(options);
+let lastDMSentToPlayer = null;
 bindEvents(bot);
 
 let nextChatTs = 0;
-/** @param {string} msg */
-function sendChat(msg) {
+/**
+ * @param {string} msg
+ * @param {()=>any} handler Called when the message has been sent (after rate limit timeout)
+ */
+function sendChat(msg, handler = undefined) {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
     setTimeout(() => {
-        if (bot) bot.chat(msg)
+        if (bot) {
+            bot.chat(msg)
+            if (handler) handler()
+        }
     }, thisChatTimeout)
 }
 
@@ -78,7 +85,7 @@ client.on('message', message => {
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
             for (const clean_line of clean_lines) {
-                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`, () => { lastDMSentToPlayer = line.split(" ")[1] })
             }
         }
     })
@@ -156,6 +163,12 @@ client.on('message', async message => {
         const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
         return attachment;
     }
+client.on('message', message => {
+    if (message.channel.type !== "text") return
+    if (message.author.bot) return
+
+    if (/dr[-_. ]*o[-_. ]*racle?/i.test(message.content))
+        message.channel.send('Roleplay detected');
 })
 
 client.on('voiceStateUpdate', (oldMember, newMember) => {
@@ -175,6 +188,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 client.login(config_type.client_token)
 
 function bindEvents(bot) {
+ 
+    lastDMSentToPlayer = null;
 
     bot.on('error', function (err) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
@@ -203,6 +218,7 @@ function bindEvents(bot) {
         let death_message = jsonMsg.toString().match(/^(\S+) was killed by (\S+) (?:with ){1,2}(.+)/);
         let new_player = jsonMsg.toString().match(/^(\S+) is brand new!/);
         let private_message = jsonMsg.toString().match(/^From (\S+): (.+)/);
+        let ignoring = jsonMsg.toString().match(/.*that player is ignoring you./i);
         let joined_game = jsonMsg.toString().match(/^(\S+) has joined the game/);
         let left_game = jsonMsg.toString().match(/^(\S+) has left the game/);
         // todo : parse for discord commands (eg. %respond)
@@ -239,6 +255,13 @@ function bindEvents(bot) {
                 if (line.split(" ")[1] === private_message[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     player_channel.send(`[**${private_message[1]}**] ${Util.removeMentions(private_message[2])}`);
+                }
+            })
+        } else if (ignoring && lastDMSentToPlayer) {
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
+                if (line.split(" ")[1] === lastDMSentToPlayer) {
+                    let player_channel = client.channels.cache.get(line.split(" ")[0]);
+                    player_channel.send(`${lastDMSentToPlayer} is ignoring this bot. Try using a different account to contact the player.`);
                 }
             })
         } else if (joined_game) {
