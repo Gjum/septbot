@@ -56,7 +56,7 @@ client.on('message', async message => {
         let args = message.content.replace("~", "").split(" ");
         switch (args[0]) {
             case 'snitchreport':
-                let snitch_activity = [];
+                let snitch_activity = {};
                 //todo : Can't request more logs than available
                 if (args[1] % 100 > 0) {
                     var messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
@@ -68,15 +68,23 @@ client.on('message', async message => {
                         messages = moreMessages.concat(messsages)
                     } while (messages.length < args[1]);
                 }
+                let count = 0;
                 messages.forEach(log => {
                     if (log[1].author.id === '214874419301056512') {
-                        clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
-                        snitch_activity.push([log[1].createdAt, clean_log[2], clean_log[3] + clean_log[4]]);
+                        let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
+                        let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
+                        if (!(date in snitch_activity)) {
+                            snitch_activity[date] = {};
+                            snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
+                            count++;
+                        } else {
+                            snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
+                            count++;
+                        }
                     }
                 })
-                message.channel.send(`Collected ${snitch_activity.length} snitch logs, from ${snitch_activity[snitch_activity.length - 1][0]}`)
-                console.log(snitch_activity)
-                fs.writeFileSync('resources/snitch_activity.json', snitch_activity);
+                message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
+                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => { if (err) throw err });
                 break;
         }
         return;
