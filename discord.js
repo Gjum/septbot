@@ -20,7 +20,7 @@ const config_type = config.septbot;
 
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
-const channel_snitch_id = '770102737530388510';
+const channel_snitch_id = '742871763758743574';
 const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
 
@@ -79,7 +79,7 @@ client.on('message', async message => {
                 }
                 let count = 0;
                 messages.forEach(log => {
-                    if (log[1].author.id === '214874419301056512') {
+                    if (log[1].author.id === '533255321414795267') {
                         let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
                         let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
                         if (!(date in snitch_activity)) {
@@ -100,7 +100,7 @@ client.on('message', async message => {
         return;
     }
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.channel.id !== channel_snitch.id)) {
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
         return;
     }
     if (message.author.id === client.user.id) return
