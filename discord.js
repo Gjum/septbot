@@ -1,5 +1,7 @@
 const Discord = require('discord.js');
 const { Util } = require('discord.js');
+const { CanvasRenderService } = require('chartjs-node-canvas');
+const { MessageAttachment } = require('discord.js')
 const fs = require('fs');
 const mineflayer = require('mineflayer');
 const prefix = '~'
@@ -85,6 +87,7 @@ client.on('message', async message => {
                 })
                 message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
                 fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => { if (err) throw err });
+                message.channel.send(graphActivity(snitch_activity));
                 break;
         }
         return;
@@ -117,6 +120,21 @@ client.on('message', async message => {
         }
     })
 })
+
+function graphActivity(data) {
+    let max = 0;
+    //todo: find better way of hiding raw snitch activity than softmax
+    for (date of Object.keys(data)) {
+        max += data[date].length;
+    }
+    for (date of Object.keys(data)) {
+        data[date] = data[date].length / max;
+    }
+    const canvas = new CanvasRenderService(800, 800);
+    const configuration = { type: 'bar', data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] } };
+    const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
+    return attachment;
+}
 
 client.on('voiceStateUpdate', (oldMember, newMember) => {
     let newUserChannel = newMember.channel
