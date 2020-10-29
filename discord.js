@@ -18,16 +18,17 @@ const config = require("./resources/config.json");
 const { pathToFileURL } = require('url');
 const config_type = config.septbot;
 
-const channel_local_id = '770091510523494420';
-const channel_global_id = '770091510523494420';
+const channel_local_id = '769382925283098634';
+const channel_global_id = '769409279496421386';
 const channel_snitch_id = '770102737530388510';
-const relay_category_id = '770091510523494420';
+const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
 
 var options = {
-    host: "localhost",
-    port: 62591,
+    host: "mc.civclassic.com",
+    port: 25565,
     username: config_type.username,
+    password: config_type.password,
     version: "1.16.1",
 };
 
@@ -59,16 +60,22 @@ client.on('message', async message => {
         switch (args[0]) {
             case 'snitchreport':
                 let snitch_activity = {};
+                let messages;
                 //todo : Can't request more logs than available
-                if (args[1] % 100 > 0) {
-                    var messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
+                if (args[1] < 100) {
+                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
                 }
-                if (args[1] > 100) {
-                    do {
+                else {
+                    if (args[1] % 100 != 0) {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
+                    } else {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
+                    }
+                    for (let i = 1; i < args[1] / 100; i++) {
                         let lastId = messages[0][0];
-                        let moreMessages = Array.from(await channel_snitch.messages.fetch({ limit: 100, before: lastId }))
-                        messages = moreMessages.concat(messsages)
-                    } while (messages.length < args[1]);
+                        let moreMessages = Array.from(await channel_snitch.messages.fetch({ limit: 100, before: lastId }));
+                        messages = moreMessages.concat(messages);
+                    }
                 }
                 let count = 0;
                 messages.forEach(log => {
@@ -123,15 +130,27 @@ client.on('message', async message => {
 
 function graphActivity(data) {
     let max = 0;
-    //todo: find better way of hiding raw snitch activity than softmax
+    //softmax - %age
     for (date of Object.keys(data)) {
         max += data[date].length;
     }
     for (date of Object.keys(data)) {
-        data[date] = data[date].length / max;
+        data[date] = data[date].length * 100 / max;
     }
-    const canvas = new CanvasRenderService(800, 800);
-    const configuration = { type: 'bar', data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] } };
+    const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
+        ChartJS.plugins.register({
+            beforeDraw: (chartInstance) => {
+                const { ctx } = chartInstance.chart
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, 800, 800);
+            }
+        });
+    });
+    const configuration = {
+        type: 'bar',
+        data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] },
+        options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
+    };
     const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
     return attachment;
 }
