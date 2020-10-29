@@ -20,7 +20,7 @@ const config_type = config.septbot;
 
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
-const channel_snitch_id = '770102737530388510';
+const channel_snitch_id = '742871763758743574';
 const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
 
@@ -54,53 +54,9 @@ client.on('ready', () => {
     relay_category = client.channels.cache.get(relay_category_id);
 })
 
-client.on('message', async message => {
-    if (message.content[0] === prefix) {
-        let args = message.content.replace("~", "").split(" ");
-        switch (args[0]) {
-            case 'snitchreport':
-                let snitch_activity = {};
-                let messages;
-                //todo : Can't request more logs than available
-                if (args[1] < 100) {
-                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
-                }
-                else {
-                    if (args[1] % 100 != 0) {
-                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
-                    } else {
-                        messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
-                    }
-                    for (let i = 1; i < args[1] / 100; i++) {
-                        let lastId = messages[0][0];
-                        let moreMessages = Array.from(await channel_snitch.messages.fetch({ limit: 100, before: lastId }));
-                        messages = moreMessages.concat(messages);
-                    }
-                }
-                let count = 0;
-                messages.forEach(log => {
-                    if (log[1].author.id === '214874419301056512') {
-                        let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
-                        let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
-                        if (!(date in snitch_activity)) {
-                            snitch_activity[date] = {};
-                            snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
-                            count++;
-                        } else {
-                            snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
-                            count++;
-                        }
-                    }
-                })
-                message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => { if (err) throw err });
-                message.channel.send(graphActivity(snitch_activity));
-                break;
-        }
-        return;
-    }
+client.on('message', message => {
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.channel.id !== channel_snitch.id)) {
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
         return;
     }
     if (message.author.id === client.user.id) return
@@ -128,32 +84,79 @@ client.on('message', async message => {
     })
 })
 
-function graphActivity(data) {
-    let max = 0;
-    //softmax - %age
-    for (date of Object.keys(data)) {
-        max += data[date].length;
+client.on('message', async message => {
+    if (message.content[0] !== prefix) return;
+    else {
+        let args = message.content.replace("~", "").split(" ");
+        switch (args[0]) {
+            case 'snitchreport':
+                let snitch_activity = {};
+                let messages;
+                //todo : Can't request more logs than available
+                if (args[1] < 100) {
+                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
+                }
+                else {
+                    if (args[1] % 100 != 0) {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
+                    } else {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
+                    }
+                    for (let i = 1; i < args[1] / 100; i++) {
+                        let lastId = messages[0][0];
+                        let moreMessages = Array.from(await channel_snitch.messages.fetch({ limit: 100, before: lastId }));
+                        messages = moreMessages.concat(messages);
+                    }
+                }
+                let count = 0;
+                messages.forEach(log => {
+                    if (log[1].author.id === '533255321414795267') {
+                        let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
+                        let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
+                        if (!(date in snitch_activity)) {
+                            snitch_activity[date] = {};
+                            snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
+                            count++;
+                        } else {
+                            snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
+                            count++;
+                        }
+                    }
+                })
+                message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
+                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => { if (err) throw err });
+                message.channel.send(graphActivity(snitch_activity));
+                break;
+        }
+        return;
     }
-    for (date of Object.keys(data)) {
-        data[date] = data[date].length * 100 / max;
-    }
-    const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
-        ChartJS.plugins.register({
-            beforeDraw: (chartInstance) => {
-                const { ctx } = chartInstance.chart
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, 800, 800);
-            }
+    function graphActivity(data) {
+        let max = 0;
+        //softmax - %age
+        for (date of Object.keys(data)) {
+            max += data[date].length;
+        }
+        for (date of Object.keys(data)) {
+            data[date] = data[date].length * 100 / max;
+        }
+        const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
+            ChartJS.plugins.register({
+                beforeDraw: (chartInstance) => {
+                    const { ctx } = chartInstance.chart
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, 800, 800);
+                }
+            });
         });
-    });
-    const configuration = {
-        type: 'bar',
-        data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] },
-        options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
-    };
-    const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
-    return attachment;
-}
+        const configuration = {
+            type: 'bar',
+            data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] },
+            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
+        };
+        const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
+        return attachment;
+    }
+})
 
 client.on('voiceStateUpdate', (oldMember, newMember) => {
     let newUserChannel = newMember.channel
