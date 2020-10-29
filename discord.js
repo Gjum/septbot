@@ -54,8 +54,39 @@ client.on('ready', () => {
     relay_category = client.channels.cache.get(relay_category_id);
 })
 
+client.on('message', message => {
+    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
+        return;
+    }
+    if (message.author.id === client.user.id) return
+    if (message.content.length > 600) {
+        message.react('❌');
+        return;
+    }
+    let clean_lines = message.content.replace('§', '').split('\n')
+    if (message.channel.id === channel_local.id) {
+        for (const clean_line of clean_lines) {
+            sendChat(`${message.author.username}: ${clean_line}`)
+        }
+    } else if (message.channel.id === channel_global.id) {
+        for (const clean_line of clean_lines) {
+            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
+        }
+        message.react('✅');
+    }
+    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+        if (line.split(" ")[0] === message.channel.id) {
+            for (const clean_line of clean_lines) {
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
+            }
+        }
+    })
+})
+
 client.on('message', async message => {
-    if (message.content[0] === prefix) {
+    if (message.content[0] !== prefix) return;
+    else {
         let args = message.content.replace("~", "").split(" ");
         switch (args[0]) {
             case 'snitchreport':
@@ -99,61 +130,33 @@ client.on('message', async message => {
         }
         return;
     }
-    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
-        return;
-    }
-    if (message.author.id === client.user.id) return
-    if (message.content.length > 600) {
-        message.react('❌');
-        return;
-    }
-    let clean_lines = message.content.replace('§', '').split('\n')
-    if (message.channel.id === channel_local.id) {
-        for (const clean_line of clean_lines) {
-            sendChat(`${message.author.username}: ${clean_line}`)
+    function graphActivity(data) {
+        let max = 0;
+        //softmax - %age
+        for (date of Object.keys(data)) {
+            max += data[date].length;
         }
-    } else if (message.channel.id === channel_global.id) {
-        for (const clean_line of clean_lines) {
-            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
+        for (date of Object.keys(data)) {
+            data[date] = data[date].length * 100 / max;
         }
-        message.react('✅');
-    }
-    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
-        if (line.split(" ")[0] === message.channel.id) {
-            for (const clean_line of clean_lines) {
-                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
-            }
-        }
-    })
-})
-
-function graphActivity(data) {
-    let max = 0;
-    //softmax - %age
-    for (date of Object.keys(data)) {
-        max += data[date].length;
-    }
-    for (date of Object.keys(data)) {
-        data[date] = data[date].length * 100 / max;
-    }
-    const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
-        ChartJS.plugins.register({
-            beforeDraw: (chartInstance) => {
-                const { ctx } = chartInstance.chart
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, 800, 800);
-            }
+        const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
+            ChartJS.plugins.register({
+                beforeDraw: (chartInstance) => {
+                    const { ctx } = chartInstance.chart
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, 800, 800);
+                }
+            });
         });
-    });
-    const configuration = {
-        type: 'bar',
-        data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] },
-        options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
-    };
-    const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
-    return attachment;
-}
+        const configuration = {
+            type: 'bar',
+            data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] },
+            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
+        };
+        const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
+        return attachment;
+    }
+})
 
 client.on('voiceStateUpdate', (oldMember, newMember) => {
     let newUserChannel = newMember.channel
