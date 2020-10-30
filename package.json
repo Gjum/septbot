@@ -13,5 +13,8 @@
     "discord.js": "^12.4.1",
     "mineflayer": "^2.32.0",
     "plotly": "^1.0.6"
+  },
+  "devDependencies": {
+    "cron": "^1.8.2"
   }
 }
