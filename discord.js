@@ -89,9 +89,10 @@ client.on('message', message => {
         channelDeletionDebug();
     }
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
         return;
     }
+    if (message.content[0] === prefix) return;
     if (message.author.id === client.user.id) return
     if (message.content.length > 600) {
         message.react('❌');
