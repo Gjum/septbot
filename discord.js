@@ -1,8 +1,9 @@
+const fs = require('fs');
+const cron = require("cron");
 const Discord = require('discord.js');
 const { Util } = require('discord.js');
-const { CanvasRenderService } = require('chartjs-node-canvas');
 const { MessageAttachment } = require('discord.js')
-const fs = require('fs');
+const { CanvasRenderService } = require('chartjs-node-canvas');
 const mineflayer = require('mineflayer');
 const prefix = '~'
 const client = new Discord.Client();
@@ -15,7 +16,6 @@ const client = new Discord.Client();
     }
 }} */
 const config = require("./resources/config.json");
-const { pathToFileURL } = require('url');
 const config_type = config.septbot;
 
 const channel_local_id = '769382925283098634';
@@ -24,7 +24,7 @@ const channel_snitch_id = '742871763758743574';
 const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
 
-var options = {
+const options = {
     host: "mc.civclassic.com",
     port: 25565,
     username: config_type.username,
@@ -59,13 +59,40 @@ client.on('ready', () => {
     channel_global = client.channels.cache.get(channel_global_id);
     channel_snitch = client.channels.cache.get(channel_snitch_id);
     relay_category = client.channels.cache.get(relay_category_id);
+    channelDeletion.start()
 })
 
+
+let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
+    channelDeletionDebug()
+
+});
+
+function channelDeletionDebug(){
+    relay_category.children.forEach(c => {
+        c.messages.fetch({ limit: 1 }) .then(messages => {
+            messages.forEach(m => {
+                if (m) {
+                    if ((Date.now() -  m.createdAt) / 1000 / 60 / 60 > 48) {
+                        console.log("Deleting " + c.name);
+                        //to do
+                    }
+                }
+            })
+        }).catch(console.error);
+    })
+}
+
+
 client.on('message', message => {
+    if (message.member.id === '145342519784374272' && message.content === "!relaypurge") { //temp
+        channelDeletionDebug();
+    }
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
         return;
     }
+    if (message.content[0] === prefix) return;
     if (message.author.id === client.user.id) return
     if (message.content.length > 600) {
         message.react('❌');
@@ -101,17 +128,19 @@ client.on('message', async message => {
                 let messages;
                 //todo : Can't request more logs than available
                 if (args[1] < 100) {
-                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
-                }
-                else {
+                    messages = Array.from(await channel_snitch.messages.fetch({limit: args[1]}));
+                } else {
                     if (args[1] % 100 != 0) {
-                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
+                        messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
                     } else {
-                        messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
+                        messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
                     }
                     for (let i = 1; i < args[1] / 100; i++) {
                         let lastId = messages[0][0];
-                        let moreMessages = Array.from(await channel_snitch.messages.fetch({ limit: 100, before: lastId }));
+                        let moreMessages = Array.from(await channel_snitch.messages.fetch({
+                            limit: 100,
+                            before: lastId
+                        }));
                         messages = moreMessages.concat(messages);
                     }
                 }
@@ -131,9 +160,19 @@ client.on('message', async message => {
                     }
                 })
                 message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => { if (err) throw err });
+                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => {
+                    if (err) throw err
+                });
                 message.channel.send(graphActivity(snitch_activity));
                 break;
+            case 'tell':
+                let sanitized_username =  args[1].toLowerCase().replace(/[^a-z\d-]/, "");
+                let channel_options = {
+                    topic: 'A channel to message ' + args[1],
+                    parent: relay_category,
+                }
+                let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
+                fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + args[1] + "\n");
         }
         return;
     }
@@ -149,7 +188,7 @@ client.on('message', async message => {
         const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
             ChartJS.plugins.register({
                 beforeDraw: (chartInstance) => {
-                    const { ctx } = chartInstance.chart
+                    const {ctx} = chartInstance.chart
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, 0, 800, 800);
                 }
@@ -157,8 +196,11 @@ client.on('message', async message => {
         });
         const configuration = {
             type: 'bar',
-            data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] },
-            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
+            data: {
+                labels: Object.keys(data).reverse(),
+                datasets: [{label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4'}]
+            },
+            options: {scales: {yAxes: [{ticks: {suggestedMax: 100}}]}}
         };
         const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
         return attachment;
@@ -167,7 +209,6 @@ client.on('message', async message => {
 client.on('message', message => {
     if (message.channel.type !== "text") return
     if (message.author.bot) return
-
     if (/dr[-_. ]*o[-_. ]*racle?/i.test(message.content))
         message.channel.send('Roleplay detected');
 })
@@ -252,12 +293,25 @@ function bindEvents(bot) {
             await new_channel.send(`\`${prompt}\``);
             fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + new_player[1] + "\n");
         } else if (private_message) {
+            let channel_exists = false;
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === private_message[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     player_channel.send(`[**${private_message[1]}**] ${Util.removeMentions(private_message[2])}`);
+                    channel_exists = true;
                 }
             })
+            if (!channel_exists) {
+                console.log("Creating new channel");
+                let sanitized_username = private_message[1].toLowerCase().replace(/[^a-z\d-]/, "");
+                let channel_options = {
+                    topic: 'A channel to message ' + private_message[1],
+                    parent: relay_category,
+                }
+                let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
+                fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + private_message[1] + "\n");
+                await new_channel.send(private_message[0])
+            }
         } else if (ignoring && lastDMSentToPlayer) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === lastDMSentToPlayer) {
@@ -270,11 +324,12 @@ function bindEvents(bot) {
                 if (line.split(" ")[1] === joined_game[1]) {
                     console.log("matching");
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
+                    if (player_channel === undefined) {
+                        return ;
+                    }
                     let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
-                    //console.log(player_channel.name);
-                    //player_channel.setName("bingus")
                     player_channel.send(joined_game[0])
-                    player_channel.setName("🟢-" + sanitized_username)//.then(newChannel => console.log(`Channel's new name is ${newChannel.name}`)) .catch(console.error);
+                    player_channel.setName("🟢-" + sanitized_username)
                 }
             })
         } else if (left_game) {
