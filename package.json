@@ -8,7 +8,10 @@
   "license": "All Rights Reserved",
   "private": true,
   "dependencies": {
+    "chart.js": "^2.9.4",
+    "chartjs-node-canvas": "^3.0.6",
     "discord.js": "^12.4.1",
-    "mineflayer": "^2.32.0"
+    "mineflayer": "^2.32.0",
+    "plotly": "^1.0.6"
   }
 }

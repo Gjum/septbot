@@ -1,8 +1,10 @@
 const Discord = require('discord.js');
 const { Util } = require('discord.js');
+const { CanvasRenderService } = require('chartjs-node-canvas');
+const { MessageAttachment } = require('discord.js')
 const fs = require('fs');
 const mineflayer = require('mineflayer');
-
+const prefix = '~'
 const client = new Discord.Client();
 
 /** @type {{
@@ -18,9 +20,9 @@ const config_type = config.septbot;
 
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
+const channel_snitch_id = '742871763758743574';
 const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
-
 
 var options = {
     host: "mc.civclassic.com",
@@ -50,25 +52,26 @@ function sendChat(msg, handler = undefined) {
     }, thisChatTimeout)
 }
 
-let channel_local, channel_global, relay_category;
+let channel_local, channel_global, relay_category, channel_snitch;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
     channel_local = client.channels.cache.get(channel_local_id);
     channel_global = client.channels.cache.get(channel_global_id);
+    channel_snitch = client.channels.cache.get(channel_snitch_id);
     relay_category = client.channels.cache.get(relay_category_id);
 })
 
 client.on('message', message => {
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-    && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
-            return
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
+        return;
     }
     if (message.author.id === client.user.id) return
     if (message.content.length > 600) {
         message.react('❌');
         return;
     }
-    let clean_lines = message.content.replace('§','').split('\n')
+    let clean_lines = message.content.replace('§', '').split('\n')
     if (message.channel.id === channel_local.id) {
         for (const clean_line of clean_lines) {
             sendChat(`${message.author.username}: ${clean_line}`)
@@ -79,8 +82,8 @@ client.on('message', message => {
         }
         message.react('✅');
     }
-    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
-        if (line.split(" ")[0] === message.channel.id ) {
+    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+        if (line.split(" ")[0] === message.channel.id) {
             for (const clean_line of clean_lines) {
                 sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`, () => { lastDMSentToPlayer = line.split(" ")[1] })
             }
@@ -88,6 +91,78 @@ client.on('message', message => {
     })
 })
 
+client.on('message', async message => {
+    if (message.content[0] !== prefix) return;
+    else {
+        let args = message.content.replace("~", "").split(" ");
+        switch (args[0]) {
+            case 'snitchreport':
+                let snitch_activity = {};
+                let messages;
+                //todo : Can't request more logs than available
+                if (args[1] < 100) {
+                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
+                }
+                else {
+                    if (args[1] % 100 != 0) {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
+                    } else {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
+                    }
+                    for (let i = 1; i < args[1] / 100; i++) {
+                        let lastId = messages[0][0];
+                        let moreMessages = Array.from(await channel_snitch.messages.fetch({ limit: 100, before: lastId }));
+                        messages = moreMessages.concat(messages);
+                    }
+                }
+                let count = 0;
+                messages.forEach(log => {
+                    if (log[1].author.id === '533255321414795267') {
+                        let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
+                        let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
+                        if (!(date in snitch_activity)) {
+                            snitch_activity[date] = {};
+                            snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
+                            count++;
+                        } else {
+                            snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
+                            count++;
+                        }
+                    }
+                })
+                message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
+                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => { if (err) throw err });
+                message.channel.send(graphActivity(snitch_activity));
+                break;
+        }
+        return;
+    }
+    function graphActivity(data) {
+        let max = 0;
+        //softmax - %age
+        for (date of Object.keys(data)) {
+            max += data[date].length;
+        }
+        for (date of Object.keys(data)) {
+            data[date] = data[date].length * 100 / max;
+        }
+        const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
+            ChartJS.plugins.register({
+                beforeDraw: (chartInstance) => {
+                    const { ctx } = chartInstance.chart
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, 800, 800);
+                }
+            });
+        });
+        const configuration = {
+            type: 'bar',
+            data: { labels: Object.keys(data).reverse(), datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }] },
+            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
+        };
+        const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
+        return attachment;
+    }
 client.on('message', message => {
     if (message.channel.type !== "text") return
     if (message.author.bot) return
@@ -102,7 +177,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
     if (newUserChannel !== null && !vcs_to_relay.includes(parseInt(newUserChannel.id))) {
         return;
     }
-    if(oldUserChannel === null && newUserChannel != null) {
+    if (oldUserChannel === null && newUserChannel != null) {
         // todo : Spam protection for repeated reconnections
         if (!newMember.member.user.bot) {
             sendChat(`[${newMember.member.user.username} joined voicechat!]`)
@@ -116,7 +191,7 @@ function bindEvents(bot) {
  
     lastDMSentToPlayer = null;
 
-    bot.on('error', function(err) {
+    bot.on('error', function (err) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
         if (err.code === undefined) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
@@ -125,19 +200,19 @@ function bindEvents(bot) {
         }
     });
 
-    bot.on('end', function() {
+    bot.on('end', function () {
         console.log("Bot has ended");
-        fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
+        fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
             let player_channel = client.channels.cache.get(line.split(" ")[0]);
             if (player_channel != undefined && player_channel.name.includes("🟢")) {
-                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/,"");
+                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/, "");
                 player_channel.setName(sanitized_username)
             }
         })
         setTimeout(relog, 6 * 1000);
     });
 
-    bot.on('message', async(jsonMsg, position) => {
+    bot.on('message', async (jsonMsg, position) => {
         let group_chat = jsonMsg.toString().match(/\[(\S+)\] (\S+): (.+)/)
         let local_chat = jsonMsg.toString().match(/^<(\S+)> (.+)/);
         let death_message = jsonMsg.toString().match(/^(\S+) was killed by (\S+) (?:with ){1,2}(.+)/);
@@ -158,10 +233,10 @@ function bindEvents(bot) {
         } else if (death_message) {
             channel_local.send(`**${death_message[1]}** was killed by **${death_message[2]}** with ${death_message[3]}`);
         } else if (new_player) {
-            let sanitized_username = new_player[1].toLowerCase().replace(/[^a-z\d-]/,"");
+            let sanitized_username = new_player[1].toLowerCase().replace(/[^a-z\d-]/, "");
             let channel_options = {
                 topic: 'A channel to message ' + new_player[1],
-                parent : relay_category,
+                parent: relay_category,
             }
             let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
             let prompt;
@@ -176,8 +251,8 @@ function bindEvents(bot) {
             await new_channel.send(`\`${prompt}\``);
             fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + new_player[1] + "\n");
         } else if (private_message) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
-                if (line.split(" ")[1] ===  private_message[1]) {
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+                if (line.split(" ")[1] === private_message[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     player_channel.send(`[**${private_message[1]}**] ${Util.removeMentions(private_message[2])}`);
                 }
@@ -190,11 +265,11 @@ function bindEvents(bot) {
                 }
             })
         } else if (joined_game) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === joined_game[1]) {
                     console.log("matching");
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
-                    let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/,"");
+                    let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
                     //console.log(player_channel.name);
                     //player_channel.setName("bingus")
                     player_channel.send(joined_game[0])
@@ -202,10 +277,10 @@ function bindEvents(bot) {
                 }
             })
         } else if (left_game) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
-                if (line.split(" ")[1] ===  left_game[1]) {
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+                if (line.split(" ")[1] === left_game[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
-                    let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/,"");
+                    let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
                     console.log("left game")
                     player_channel.send(left_game[0])
                     player_channel.setName(sanitized_username)
@@ -221,8 +296,8 @@ function relog() {
     bindEvents(bot);
 }
 
-function getRandomLine(filename){
+function getRandomLine(filename) {
     var data = fs.readFileSync(filename, "utf8");
     var lines = data.split('\n');
-    return lines[Math.floor(Math.random()*lines.length)];
+    return lines[Math.floor(Math.random() * lines.length)];
 }
