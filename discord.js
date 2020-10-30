@@ -163,6 +163,7 @@ client.on('message', async message => {
         const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
         return attachment;
     }
+})
 client.on('message', message => {
     if (message.channel.type !== "text") return
     if (message.author.bot) return
@@ -188,7 +189,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 client.login(config_type.client_token)
 
 function bindEvents(bot) {
- 
+
     lastDMSentToPlayer = null;
 
     bot.on('error', function (err) {
@@ -258,7 +259,7 @@ function bindEvents(bot) {
                 }
             })
         } else if (ignoring && lastDMSentToPlayer) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === lastDMSentToPlayer) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     player_channel.send(`${lastDMSentToPlayer} is ignoring this bot. Try using a different account to contact the player.`);
