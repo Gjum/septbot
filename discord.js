@@ -188,9 +188,6 @@ client.on('message', async message => {
                     }
                 })
                 message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => {
-                    if (err) throw err
-                });
                 message.channel.send(graphActivity(snitch_activity));
                 break;
             case 'tell':
