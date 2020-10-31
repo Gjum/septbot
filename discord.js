@@ -33,6 +33,8 @@ const options = {
 };
 
 let bot = mineflayer.createBot(options);
+let lastDMSentToPlayer = null;
+let lastVCBroadcast = null;
 bindEvents(bot);
 
 let nextChatTs = 0;
@@ -61,14 +63,14 @@ let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
 
 });
 
-function channelDeletionDebug() {
+function channelDeletionDebug(){
     relay_category.children.forEach(c => {
-        c.messages.fetch({ limit: 1 }).then(messages => {
+        c.messages.fetch({ limit: 1 }) .then(messages => {
             messages.forEach(m => {
                 if (m) {
-                    if ((Date.now() - m.createdAt) / 1000 / 60 / 60 > 48) {
+                    if ((Date.now() -  m.createdAt) / 1000 / 60 / 60 > 48) {
                         console.log("Deleting " + c.name);
-                        //to do
+                       c.delete();
                     }
                 }
             })
@@ -78,6 +80,9 @@ function channelDeletionDebug() {
 
 
 client.on('message', message => {
+    if (!message.member) {
+        return;
+    }
     if (message.member.id === '145342519784374272' && message.content === "!relaypurge") { //temp
         channelDeletionDebug();
     }
@@ -91,7 +96,7 @@ client.on('message', message => {
         message.react('❌');
         return;
     }
-    let clean_lines = message.content.replace('§', '').split('\n')
+    let clean_lines = message.content.replace(/§/g, '').split('\n')
     if (message.channel.id === channel_local.id) {
         for (const clean_line of clean_lines) {
             sendChat(`${message.author.username}: ${clean_line}`)
@@ -153,9 +158,9 @@ client.on('message', async message => {
                     messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
                 } else {
                     if (args[1] % 100 != 0) {
-                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
+                        messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
                     } else {
-                        messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
+                        messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
                     }
                     for (let i = 1; i < args[1] / 100; i++) {
                         let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
@@ -189,14 +194,13 @@ client.on('message', async message => {
                 message.channel.send(graphActivity(snitch_activity));
                 break;
             case 'tell':
-                let sanitized_username = args[1].toLowerCase().replace(/[^a-z\d-]/, "");
+                let sanitized_username =  args[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                 let channel_options = {
                     topic: 'A channel to message ' + args[1],
                     parent: relay_category,
                 }
                 let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
                 fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + args[1] + "\n");
-                break;
         }
         return;
     }
@@ -212,7 +216,7 @@ client.on('message', async message => {
         const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
             ChartJS.plugins.register({
                 beforeDraw: (chartInstance) => {
-                    const { ctx } = chartInstance.chart
+                    const {ctx} = chartInstance.chart
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, 0, 800, 800);
                 }
@@ -248,6 +252,18 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
         if (!newMember.member.user.bot) {
             sendChat(`[${newMember.member.user.username} joined voicechat!]`)
         }
+        let i = 0;
+        newUserChannel.members.forEach(m => {
+            if (!m.user.bot) {
+                i++;
+            }
+        })
+        if (i>= 7) {
+            if (!lastVCBroadcast || (Date.now() -  lastVCBroadcast) / 1000 / 60 > 100) {
+                bot.chat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
+                lastVCBroadcast = Date.now();
+            }
+        }
     }
 })
 
@@ -271,7 +287,7 @@ function bindEvents(bot) {
         fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
             let player_channel = client.channels.cache.get(line.split(" ")[0]);
             if (player_channel != undefined && player_channel.name.includes("🟢")) {
-                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/, "");
+                let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                 player_channel.setName(sanitized_username)
             }
         })
@@ -298,7 +314,7 @@ function bindEvents(bot) {
         } else if (death_message) {
             channel_local.send(`**${death_message[1]}** was killed by **${death_message[2]}** with ${death_message[3]}`);
         } else if (new_player) {
-            let sanitized_username = new_player[1].toLowerCase().replace(/[^a-z\d-]/, "");
+            let sanitized_username = new_player[1].toLowerCase().replace(/[^a-z\d-]/g, "");
             let channel_options = {
                 topic: 'A channel to message ' + new_player[1],
                 parent: relay_category,
@@ -320,13 +336,15 @@ function bindEvents(bot) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === private_message[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
-                    player_channel.send(`[**${private_message[1]}**] ${Util.removeMentions(private_message[2])}`);
-                    channel_exists = true;
+                    if (player_channel) {
+                        player_channel.send(`[**${private_message[1]}**] ${Util.removeMentions(private_message[2])}`);
+                        channel_exists = true;
+                    }
                 }
             })
             if (!channel_exists) {
                 console.log("Creating new channel");
-                let sanitized_username = private_message[1].toLowerCase().replace(/[^a-z\d-]/, "");
+                let sanitized_username = private_message[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                 let channel_options = {
                     topic: 'A channel to message ' + private_message[1],
                     parent: relay_category,
@@ -348,9 +366,9 @@ function bindEvents(bot) {
                     console.log("matching");
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel === undefined) {
-                        return;
+                        return ;
                     }
-                    let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
+                    let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                     player_channel.send(joined_game[0])
                     player_channel.setName("🟢-" + sanitized_username)
                 }
@@ -359,8 +377,10 @@ function bindEvents(bot) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === left_game[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
-                    let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
-                    console.log("left game")
+                    if (player_channel === undefined) {
+                        return ;
+                    }
+                    let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                     player_channel.send(left_game[0])
                     player_channel.setName(sanitized_username)
                 }
