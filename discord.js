@@ -177,7 +177,7 @@ client.on('message', async message => {
         }
         return;
     }
-    function graphActivity({...data}) {
+    function graphActivity({ ...data }) {
         //softmax - %age
         let max = 0;
         for (date of Object.keys(data)) {
