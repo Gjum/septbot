@@ -33,22 +33,15 @@ const options = {
 };
 
 let bot = mineflayer.createBot(options);
-let lastDMSentToPlayer = null;
 bindEvents(bot);
 
 let nextChatTs = 0;
-/**
- * @param {string} msg
- * @param {()=>any} handler Called when the message has been sent (after rate limit timeout)
- */
-function sendChat(msg, handler = undefined) {
+/** @param {string} msg */
+function sendChat(msg) {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
     setTimeout(() => {
-        if (bot) {
-            bot.chat(msg)
-            if (handler) handler()
-        }
+        if (bot) bot.chat(msg)
     }, thisChatTimeout)
 }
 
@@ -113,6 +106,36 @@ client.on('message', message => {
         if (line.split(" ")[0] === message.channel.id) {
             for (const clean_line of clean_lines) {
                 sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`, () => { lastDMSentToPlayer = line.split(" ")[1] })
+            }
+        }
+    })
+})
+
+client.on('message', message => {
+    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
+        return;
+    }
+    if (message.author.id === client.user.id) return
+    if (message.content.length > 600) {
+        message.react('❌');
+        return;
+    }
+    let clean_lines = message.content.replace('§', '').split('\n')
+    if (message.channel.id === channel_local.id) {
+        for (const clean_line of clean_lines) {
+            sendChat(`${message.author.username}: ${clean_line}`)
+        }
+    } else if (message.channel.id === channel_global.id) {
+        for (const clean_line of clean_lines) {
+            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
+        }
+        message.react('✅');
+    }
+    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+        if (line.split(" ")[0] === message.channel.id) {
+            for (const clean_line of clean_lines) {
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
             }
         }
     })
@@ -261,7 +284,6 @@ function bindEvents(bot) {
         let death_message = jsonMsg.toString().match(/^(\S+) was killed by (\S+) (?:with ){1,2}(.+)/);
         let new_player = jsonMsg.toString().match(/^(\S+) is brand new!/);
         let private_message = jsonMsg.toString().match(/^From (\S+): (.+)/);
-        let ignoring = jsonMsg.toString().match(/.*that player is ignoring you./i);
         let joined_game = jsonMsg.toString().match(/^(\S+) has joined the game/);
         let left_game = jsonMsg.toString().match(/^(\S+) has left the game/);
         // todo : parse for discord commands (eg. %respond)
