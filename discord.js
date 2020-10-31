@@ -68,12 +68,12 @@ let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
 
 });
 
-function channelDeletionDebug(){
+function channelDeletionDebug() {
     relay_category.children.forEach(c => {
-        c.messages.fetch({ limit: 1 }) .then(messages => {
+        c.messages.fetch({ limit: 1 }).then(messages => {
             messages.forEach(m => {
                 if (m) {
-                    if ((Date.now() -  m.createdAt) / 1000 / 60 / 60 > 48) {
+                    if ((Date.now() - m.createdAt) / 1000 / 60 / 60 > 48) {
                         console.log("Deleting " + c.name);
                         //to do
                     }
@@ -126,27 +126,27 @@ client.on('message', async message => {
             case 'snitchreport':
                 let snitch_activity = {};
                 let messages;
-                //todo : Can't request more logs than available
                 if (args[1] < 100) {
-                    messages = Array.from(await channel_snitch.messages.fetch({limit: args[1]}));
+                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
                 } else {
                     if (args[1] % 100 != 0) {
-                        messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
                     } else {
-                        messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
                     }
                     for (let i = 1; i < args[1] / 100; i++) {
-                        let lastId = messages[0][0];
+                        let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
                         let moreMessages = Array.from(await channel_snitch.messages.fetch({
                             limit: 100,
                             before: lastId
                         }));
-                        messages = moreMessages.concat(messages);
+                        messages = messages.concat(moreMessages);
                     }
                 }
                 let count = 0;
+                //snitch_activity is ordered newest -> oldest
                 messages.forEach(log => {
-                    if (log[1].author.id === '533255321414795267') {
+                    if (log[1].author.id === '533255321414795267' && /(is at)/.test(log[1].content)) {
                         let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
                         let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
                         if (!(date in snitch_activity)) {
@@ -166,19 +166,20 @@ client.on('message', async message => {
                 message.channel.send(graphActivity(snitch_activity));
                 break;
             case 'tell':
-                let sanitized_username =  args[1].toLowerCase().replace(/[^a-z\d-]/, "");
+                let sanitized_username = args[1].toLowerCase().replace(/[^a-z\d-]/, "");
                 let channel_options = {
                     topic: 'A channel to message ' + args[1],
                     parent: relay_category,
                 }
                 let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
                 fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + args[1] + "\n");
+                break;
         }
         return;
     }
-    function graphActivity(data) {
-        let max = 0;
+    function graphActivity({...data}) {
         //softmax - %age
+        let max = 0;
         for (date of Object.keys(data)) {
             max += data[date].length;
         }
@@ -188,7 +189,7 @@ client.on('message', async message => {
         const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
             ChartJS.plugins.register({
                 beforeDraw: (chartInstance) => {
-                    const {ctx} = chartInstance.chart
+                    const { ctx } = chartInstance.chart
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, 0, 800, 800);
                 }
@@ -198,9 +199,9 @@ client.on('message', async message => {
             type: 'bar',
             data: {
                 labels: Object.keys(data).reverse(),
-                datasets: [{label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4'}]
+                datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }]
             },
-            options: {scales: {yAxes: [{ticks: {suggestedMax: 100}}]}}
+            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
         };
         const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
         return attachment;
@@ -325,7 +326,7 @@ function bindEvents(bot) {
                     console.log("matching");
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel === undefined) {
-                        return ;
+                        return;
                     }
                     let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/, "");
                     player_channel.send(joined_game[0])
