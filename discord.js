@@ -110,37 +110,7 @@ client.on('message', message => {
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
             for (const clean_line of clean_lines) {
-                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`, () => { lastDMSentToPlayer = line.split(" ")[1] })
-            }
-        }
-    })
-})
-
-client.on('message', message => {
-    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
-        return;
-    }
-    if (message.author.id === client.user.id) return
-    if (message.content.length > 600) {
-        message.react('❌');
-        return;
-    }
-    let clean_lines = message.content.replace('§', '').split('\n')
-    if (message.channel.id === channel_local.id) {
-        for (const clean_line of clean_lines) {
-            sendChat(`${message.author.username}: ${clean_line}`)
-        }
-    } else if (message.channel.id === channel_global.id) {
-        for (const clean_line of clean_lines) {
-            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
-        }
-        message.react('✅');
-    }
-    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
-        if (line.split(" ")[0] === message.channel.id) {
-            for (const clean_line of clean_lines) {
-                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`, () => { lastDMSentToPlayer = line.split(" ")[1]})
             }
         }
     })
@@ -152,43 +122,51 @@ client.on('message', async message => {
         let args = message.content.replace("~", "").split(" ");
         switch (args[0]) {
             case 'snitchreport':
-                let snitch_activity = {};
-                let messages;
-                if (args[1] < 100) {
-                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
-                } else {
-                    if (args[1] % 100 != 0) {
-                        messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
+                try{
+                    message.channel.startTyping()
+                    let snitch_activity = {};
+                    let messages;
+                    if (args[1] < 100) {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
                     } else {
-                        messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
-                    }
-                    for (let i = 1; i < args[1] / 100; i++) {
-                        let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
-                        let moreMessages = Array.from(await channel_snitch.messages.fetch({
-                            limit: 100,
-                            before: lastId
-                        }));
-                        messages = messages.concat(moreMessages);
-                    }
-                }
-                let count = 0;
-                //snitch_activity is ordered newest -> oldest
-                messages.forEach(log => {
-                    if (log[1].author.id === '533255321414795267' && /(is at)/.test(log[1].content)) {
-                        let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
-                        let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
-                        if (!(date in snitch_activity)) {
-                            snitch_activity[date] = {};
-                            snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
-                            count++;
+                        if (args[1] % 100 != 0) {
+                            messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
                         } else {
-                            snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
-                            count++;
+                            messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
+                        }
+                        for (let i = 1; i < args[1] / 100; i++) {
+                            let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
+                            let moreMessages = Array.from(await channel_snitch.messages.fetch({
+                                limit: 100,
+                                before: lastId
+                            }));
+                            messages = messages.concat(moreMessages);
                         }
                     }
-                })
-                message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                message.channel.send(graphActivity(snitch_activity));
+                    let count = 0;
+                    //snitch_activity is ordered newest -> oldest
+                    messages.forEach(log => {
+                        if (log[1].author.id === '533255321414795267' && /(is at)/.test(log[1].content)) {
+                            let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
+                            let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
+                            if (!(date in snitch_activity)) {
+                                snitch_activity[date] = {};
+                                snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
+                                count++;
+                            } else {
+                                snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
+                                count++;
+                            }
+                        }
+                    })
+                    message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
+                    message.channel.send(graphActivity(snitch_activity));
+                    message.channel.stopTyping()
+                }catch(e){
+                    console.log(e)
+                }finally{
+                    message.channel.stopTyping()
+                }
                 break;
             case 'tell':
                 let sanitized_username =  args[1].toLowerCase().replace(/[^a-z\d-]/g, "");
@@ -299,6 +277,7 @@ function bindEvents(bot) {
         let private_message = jsonMsg.toString().match(/^From (\S+): (.+)/);
         let joined_game = jsonMsg.toString().match(/^(\S+) has joined the game/);
         let left_game = jsonMsg.toString().match(/^(\S+) has left the game/);
+        let ignoring = jsonMsg.toString().match(/.*that player is ignoring you./i);
         // todo : parse for discord commands (eg. %respond)
 
         if (group_chat) {
@@ -360,7 +339,6 @@ function bindEvents(bot) {
         } else if (joined_game) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === joined_game[1]) {
-                    console.log("matching");
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel === undefined) {
                         return ;
