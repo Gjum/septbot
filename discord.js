@@ -38,18 +38,12 @@ let lastVCBroadcast = null;
 bindEvents(bot);
 
 let nextChatTs = 0;
-/**
- * @param {string} msg
- * @param {()=>any} handler Called when the message has been sent (after rate limit timeout)
- */
-function sendChat(msg, handler = undefined) {
+/** @param {string} msg */
+function sendChat(msg) {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
     setTimeout(() => {
-        if (bot) {
-            bot.chat(msg)
-            if (handler) handler()
-        }
+        if (bot) bot.chat(msg)
     }, thisChatTimeout)
 }
 
@@ -122,6 +116,36 @@ client.on('message', message => {
     })
 })
 
+client.on('message', message => {
+    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
+        return;
+    }
+    if (message.author.id === client.user.id) return
+    if (message.content.length > 600) {
+        message.react('❌');
+        return;
+    }
+    let clean_lines = message.content.replace('§', '').split('\n')
+    if (message.channel.id === channel_local.id) {
+        for (const clean_line of clean_lines) {
+            sendChat(`${message.author.username}: ${clean_line}`)
+        }
+    } else if (message.channel.id === channel_global.id) {
+        for (const clean_line of clean_lines) {
+            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
+        }
+        message.react('✅');
+    }
+    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+        if (line.split(" ")[0] === message.channel.id) {
+            for (const clean_line of clean_lines) {
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
+            }
+        }
+    })
+})
+
 client.on('message', async message => {
     if (message.content[0] !== prefix) return;
     else {
@@ -130,9 +154,8 @@ client.on('message', async message => {
             case 'snitchreport':
                 let snitch_activity = {};
                 let messages;
-                //todo : Can't request more logs than available
                 if (args[1] < 100) {
-                    messages = Array.from(await channel_snitch.messages.fetch({limit: args[1]}));
+                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
                 } else {
                     if (args[1] % 100 != 0) {
                         messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
@@ -140,17 +163,18 @@ client.on('message', async message => {
                         messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
                     }
                     for (let i = 1; i < args[1] / 100; i++) {
-                        let lastId = messages[0][0];
+                        let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
                         let moreMessages = Array.from(await channel_snitch.messages.fetch({
                             limit: 100,
                             before: lastId
                         }));
-                        messages = moreMessages.concat(messages);
+                        messages = messages.concat(moreMessages);
                     }
                 }
                 let count = 0;
+                //snitch_activity is ordered newest -> oldest
                 messages.forEach(log => {
-                    if (log[1].author.id === '533255321414795267') {
+                    if (log[1].author.id === '533255321414795267' && /(is at)/.test(log[1].content)) {
                         let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
                         let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
                         if (!(date in snitch_activity)) {
@@ -164,9 +188,6 @@ client.on('message', async message => {
                     }
                 })
                 message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                fs.writeFile('resources/snitch_activity.json', JSON.stringify(snitch_activity), (err) => {
-                    if (err) throw err
-                });
                 message.channel.send(graphActivity(snitch_activity));
                 break;
             case 'tell':
@@ -180,9 +201,9 @@ client.on('message', async message => {
         }
         return;
     }
-    function graphActivity(data) {
-        let max = 0;
+    function graphActivity({ ...data }) {
         //softmax - %age
+        let max = 0;
         for (date of Object.keys(data)) {
             max += data[date].length;
         }
@@ -202,9 +223,9 @@ client.on('message', async message => {
             type: 'bar',
             data: {
                 labels: Object.keys(data).reverse(),
-                datasets: [{label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4'}]
+                datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }]
             },
-            options: {scales: {yAxes: [{ticks: {suggestedMax: 100}}]}}
+            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
         };
         const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
         return attachment;
@@ -246,7 +267,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 client.login(config_type.client_token)
 
 function bindEvents(bot) {
- 
+
     lastDMSentToPlayer = null;
 
     bot.on('error', function (err) {
@@ -276,7 +297,6 @@ function bindEvents(bot) {
         let death_message = jsonMsg.toString().match(/^(\S+) was killed by (\S+) (?:with ){1,2}(.+)/);
         let new_player = jsonMsg.toString().match(/^(\S+) is brand new!/);
         let private_message = jsonMsg.toString().match(/^From (\S+): (.+)/);
-        let ignoring = jsonMsg.toString().match(/.*that player is ignoring you./i);
         let joined_game = jsonMsg.toString().match(/^(\S+) has joined the game/);
         let left_game = jsonMsg.toString().match(/^(\S+) has left the game/);
         // todo : parse for discord commands (eg. %respond)
@@ -331,7 +351,7 @@ function bindEvents(bot) {
                 await new_channel.send(private_message[0])
             }
         } else if (ignoring && lastDMSentToPlayer) {
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function(line){
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === lastDMSentToPlayer) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     player_channel.send(`${lastDMSentToPlayer} is ignoring this bot. Try using a different account to contact the player.`);
