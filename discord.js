@@ -296,8 +296,12 @@ function bindEvents(bot) {
                 parent: relay_category,
             }
             let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
+            fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + new_player[1] + "\n");
+            if (Math.floor(Math.random() * 4) + 1 === 1) {
+                await sleep(Math.floor(Math.random() * (30 - 10) + 10) * 1000)
+            }
             let prompt;
-            if (Math.floor(Math.random() * 4) + 1 !== 3) {
+            if (Math.floor(Math.random() * 10) + 1 !== 3) {
                 await new_channel.send("This relay was randomly selected as __serious__. Please do not harass the newfriend.");
                 prompt = getRandomLine('resources/message_prompts');
             } else {
@@ -306,7 +310,14 @@ function bindEvents(bot) {
             }
             bot.chat(`/tell ${new_player[1]} ${prompt}`);
             await new_channel.send(`\`${prompt}\``);
-            fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + new_player[1] + "\n");
+            // To Do : only send this reminder if the newfriend has not responded already
+            if (Math.floor(Math.random() * 2) + 1 !== 1) {
+                setTimeout(async function(){
+                    let reminder = `If you need any help ${new_player[1]} you can respond to messages with /r`
+                    await new_channel.send(`/tell ${new_player[1]} ${reminder}`);
+                    await new_channel.send(`\`${reminder}\``);
+                }, 5*1000);
+            }
         } else if (private_message) {
             let channel_exists = false;
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
@@ -374,4 +385,8 @@ function getRandomLine(filename) {
     var data = fs.readFileSync(filename, "utf8");
     var lines = data.split('\n');
     return lines[Math.floor(Math.random() * lines.length)];
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
