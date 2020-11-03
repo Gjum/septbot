@@ -21,7 +21,7 @@ const config_type = config.septbot;
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
 const channel_snitch_id = '742871763758743574';
-const relay_category_id = '771935127558422548'; //CHANGE
+const relay_category_id = '769437623113744416';
 const vcs_to_relay = [742831212711772265];
 
 const options = {
