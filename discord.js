@@ -21,7 +21,7 @@ const config_type = config.septbot;
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
 const channel_snitch_id = '742871763758743574';
-const relay_category_id = '770391959432593458';
+const relay_category_id = '771935127558422548'; //CHANGE
 const vcs_to_relay = [742831212711772265];
 
 const options = {
@@ -63,14 +63,14 @@ let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
 
 });
 
-function channelDeletionDebug(){
+function channelDeletionDebug() {
     relay_category.children.forEach(c => {
-        c.messages.fetch({ limit: 1 }) .then(messages => {
+        c.messages.fetch({ limit: 1 }).then(messages => {
             messages.forEach(m => {
                 if (m) {
-                    if ((Date.now() -  m.createdAt) / 1000 / 60 / 60 > 48) {
+                    if ((Date.now() - m.createdAt) / 1000 / 60 / 60 > 48) {
                         console.log("Deleting " + c.name);
-                       c.delete();
+                        c.delete();
                     }
                 }
             })
@@ -86,7 +86,7 @@ client.on('message', message => {
     if (message.member.id === '145342519784374272' && message.content === "!relaypurge") { //temp
         channelDeletionDebug();
     }
-    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
+    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id && message.roles.find(role => role.name === "Resident"))
         && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
         return;
     }
@@ -116,82 +116,60 @@ client.on('message', message => {
     })
 })
 
-client.on('message', message => {
-    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.content[0] === prefix)) {
-        return;
-    }
-    if (message.author.id === client.user.id) return
-    if (message.content.length > 600) {
-        message.react('❌');
-        return;
-    }
-    let clean_lines = message.content.replace('§', '').split('\n')
-    if (message.channel.id === channel_local.id) {
-        for (const clean_line of clean_lines) {
-            sendChat(`${message.author.username}: ${clean_line}`)
-        }
-    } else if (message.channel.id === channel_global.id) {
-        for (const clean_line of clean_lines) {
-            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
-        }
-        message.react('✅');
-    }
-    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
-        if (line.split(" ")[0] === message.channel.id) {
-            for (const clean_line of clean_lines) {
-                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
-            }
-        }
-    })
-})
-
 client.on('message', async message => {
     if (message.content[0] !== prefix) return;
     else {
         let args = message.content.replace("~", "").split(" ");
         switch (args[0]) {
             case 'snitchreport':
-                let snitch_activity = {};
-                let messages;
-                if (args[1] < 100) {
-                    messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
-                } else {
-                    if (args[1] % 100 != 0) {
-                        messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
+                try {
+                    message.channel.startTyping()
+                    let snitch_activity = {};
+                    let messages;
+                    if (args[1] < 100) {
+                        messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
                     } else {
-                        messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
-                    }
-                    for (let i = 1; i < args[1] / 100; i++) {
-                        let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
-                        let moreMessages = Array.from(await channel_snitch.messages.fetch({
-                            limit: 100,
-                            before: lastId
-                        }));
-                        messages = messages.concat(moreMessages);
-                    }
-                }
-                let count = 0;
-                //snitch_activity is ordered newest -> oldest
-                messages.forEach(log => {
-                    if (log[1].author.id === '533255321414795267' && /(is at)/.test(log[1].content)) {
-                        let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
-                        let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
-                        if (!(date in snitch_activity)) {
-                            snitch_activity[date] = {};
-                            snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
-                            count++;
+                        if (args[1] % 100 != 0) {
+                            messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
                         } else {
-                            snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
-                            count++;
+                            messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
+                        }
+                        for (let i = 1; i < args[1] / 100; i++) {
+                            let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
+                            let moreMessages = Array.from(await channel_snitch.messages.fetch({
+                                limit: 100,
+                                before: lastId
+                            }));
+                            messages = messages.concat(moreMessages);
                         }
                     }
-                })
-                message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                message.channel.send(graphActivity(snitch_activity));
+                    let count = 0;
+                    //snitch_activity is ordered newest -> oldest
+                    messages.forEach(log => {
+                        if (log[1].author.id === '533255321414795267' && /(is at)/.test(log[1].content)) {
+                            let clean_log = log[1].content.replace(/([*`])|( is at)/g, "").split(" ");
+                            let date = log[1].createdAt.toString().split(' ').slice(0, 4).join(" ");
+                            if (!(date in snitch_activity)) {
+                                snitch_activity[date] = {};
+                                snitch_activity[date] = [[clean_log[2], clean_log[3] + clean_log[4]]];
+                                count++;
+                            } else {
+                                snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
+                                count++;
+                            }
+                        }
+                    })
+                    message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
+                    message.channel.send(graphActivity(snitch_activity));
+                    message.channel.stopTyping()
+                } catch (e) {
+                    console.log(e)
+                } finally {
+                    message.channel.stopTyping()
+                }
                 break;
             case 'tell':
-                let sanitized_username =  args[1].toLowerCase().replace(/[^a-z\d-]/g, "");
+                let sanitized_username = args[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                 let channel_options = {
                     topic: 'A channel to message ' + args[1],
                     parent: relay_category,
@@ -213,7 +191,7 @@ client.on('message', async message => {
         const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
             ChartJS.plugins.register({
                 beforeDraw: (chartInstance) => {
-                    const {ctx} = chartInstance.chart
+                    const { ctx } = chartInstance.chart
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, 0, 800, 800);
                 }
@@ -255,8 +233,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
                 i++;
             }
         })
-        if (i>= 7) {
-            if (!lastVCBroadcast || (Date.now() -  lastVCBroadcast) / 1000 / 60 > 100) {
+        if (i >= 7) {
+            if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 100) {
                 bot.chat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
                 lastVCBroadcast = Date.now();
             }
@@ -299,6 +277,7 @@ function bindEvents(bot) {
         let private_message = jsonMsg.toString().match(/^From (\S+): (.+)/);
         let joined_game = jsonMsg.toString().match(/^(\S+) has joined the game/);
         let left_game = jsonMsg.toString().match(/^(\S+) has left the game/);
+        let ignoring = jsonMsg.toString().match(/.*that player is ignoring you./i);
         // todo : parse for discord commands (eg. %respond)
 
         if (group_chat) {
@@ -360,10 +339,9 @@ function bindEvents(bot) {
         } else if (joined_game) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === joined_game[1]) {
-                    console.log("matching");
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel === undefined) {
-                        return ;
+                        return;
                     }
                     let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                     player_channel.send(joined_game[0])
@@ -375,7 +353,7 @@ function bindEvents(bot) {
                 if (line.split(" ")[1] === left_game[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel === undefined) {
-                        return ;
+                        return;
                     }
                     let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                     player_channel.send(left_game[0])
