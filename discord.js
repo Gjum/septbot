@@ -86,7 +86,7 @@ client.on('message', message => {
     if (message.member.id === '145342519784374272' && message.content === "!relaypurge") { //temp
         channelDeletionDebug();
     }
-    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id && message.roles.find(role => role.name === "Resident"))
+    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id && message.member.roles.cache.has(role => role.name === "Resident"))
         && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
         return;
     }
