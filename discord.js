@@ -21,7 +21,7 @@ const config_type = config.septbot;
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
 const channel_snitch_id = '742871763758743574';
-const relay_category_id = '770391959432593458';
+const relay_category_id = '771935127558422548';
 const vcs_to_relay = [742831212711772265];
 
 const options = {
@@ -125,6 +125,7 @@ client.on('message', async message => {
                 try {
                     message.channel.startTyping()
                     let snitch_activity = {};
+                    let player_activity = {};
                     let messages;
                     if (args[1] < 100) {
                         messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
@@ -157,10 +158,20 @@ client.on('message', async message => {
                                 snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
                                 count++;
                             }
+                            if (!(clean_log[2] in player_activity)) {
+                                player_activity[clean_log[2]] = 1;
+                            } else {
+                                player_activity[clean_log[2]]++;
+                            }
+                            console.log(player_activity)
                         }
                     })
-                    message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                    message.channel.send(graphActivity(snitch_activity));
+                    let embed = new Discord.MessageEmbed()
+                        .setTitle(`Snitch activity`)
+                        .setDescription(`For the last ${count} logs`)
+                        .addField(`Top players for this period`, topActivity(player_activity))
+                    //.setImage(graphActivity(snitch_activity));
+                    message.channel.send(embed)
                     message.channel.stopTyping()
                 } catch (e) {
                     console.log(e)
@@ -205,8 +216,16 @@ client.on('message', async message => {
             },
             options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
         };
-        const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
-        return attachment;
+        return canvas.renderToBufferSync(configuration);
+    }
+    function topActivity({ ...data }) {
+        let max = 0;
+        for (entry in Object.keys(data)) {
+            if (data[entry] > max) {
+                
+            }
+        }
+        return sorted;
     }
 })
 client.on('message', message => {
