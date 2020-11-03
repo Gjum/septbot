@@ -63,14 +63,14 @@ let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
 
 });
 
-function channelDeletionDebug(){
+function channelDeletionDebug() {
     relay_category.children.forEach(c => {
-        c.messages.fetch({ limit: 1 }) .then(messages => {
+        c.messages.fetch({ limit: 1 }).then(messages => {
             messages.forEach(m => {
                 if (m) {
-                    if ((Date.now() -  m.createdAt) / 1000 / 60 / 60 > 48) {
+                    if ((Date.now() - m.createdAt) / 1000 / 60 / 60 > 48) {
                         console.log("Deleting " + c.name);
-                       c.delete();
+                        c.delete();
                     }
                 }
             })
@@ -87,7 +87,7 @@ client.on('message', message => {
         channelDeletionDebug();
     }
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id)) {
+        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
         return;
     }
     if (message.content[0] === prefix) return;
@@ -110,7 +110,7 @@ client.on('message', message => {
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
             for (const clean_line of clean_lines) {
-                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`, () => { lastDMSentToPlayer = line.split(" ")[1]})
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`, () => { lastDMSentToPlayer = line.split(" ")[1] })
             }
         }
     })
@@ -122,7 +122,7 @@ client.on('message', async message => {
         let args = message.content.replace("~", "").split(" ");
         switch (args[0]) {
             case 'snitchreport':
-                try{
+                try {
                     message.channel.startTyping()
                     let snitch_activity = {};
                     let messages;
@@ -130,9 +130,9 @@ client.on('message', async message => {
                         messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
                     } else {
                         if (args[1] % 100 != 0) {
-                            messages = Array.from(await channel_snitch.messages.fetch({limit: args[1] % 100}));
+                            messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] % 100 }));
                         } else {
-                            messages = Array.from(await channel_snitch.messages.fetch({limit: 100}));
+                            messages = Array.from(await channel_snitch.messages.fetch({ limit: 100 }));
                         }
                         for (let i = 1; i < args[1] / 100; i++) {
                             let lastId = messages[messages.length - 1][messages[messages.length - 1].length - 1].id;
@@ -162,14 +162,14 @@ client.on('message', async message => {
                     message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
                     message.channel.send(graphActivity(snitch_activity));
                     message.channel.stopTyping()
-                }catch(e){
+                } catch (e) {
                     console.log(e)
-                }finally{
+                } finally {
                     message.channel.stopTyping()
                 }
                 break;
             case 'tell':
-                let sanitized_username =  args[1].toLowerCase().replace(/[^a-z\d-]/g, "");
+                let sanitized_username = args[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                 let channel_options = {
                     topic: 'A channel to message ' + args[1],
                     parent: relay_category,
@@ -191,7 +191,7 @@ client.on('message', async message => {
         const canvas = new CanvasRenderService(800, 800, (ChartJS) => {
             ChartJS.plugins.register({
                 beforeDraw: (chartInstance) => {
-                    const {ctx} = chartInstance.chart
+                    const { ctx } = chartInstance.chart
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, 0, 800, 800);
                 }
@@ -233,8 +233,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
                 i++;
             }
         })
-        if (i>= 7) {
-            if (!lastVCBroadcast || (Date.now() -  lastVCBroadcast) / 1000 / 60 > 100) {
+        if (i >= 7) {
+            if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 100) {
                 bot.chat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
                 lastVCBroadcast = Date.now();
             }
@@ -341,7 +341,7 @@ function bindEvents(bot) {
                 if (line.split(" ")[1] === joined_game[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel === undefined) {
-                        return ;
+                        return;
                     }
                     let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                     player_channel.send(joined_game[0])
@@ -353,7 +353,7 @@ function bindEvents(bot) {
                 if (line.split(" ")[1] === left_game[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel === undefined) {
-                        return ;
+                        return;
                     }
                     let sanitized_username = left_game[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                     player_channel.send(left_game[0])
