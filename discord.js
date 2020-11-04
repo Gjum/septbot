@@ -18,8 +18,8 @@ const client = new Discord.Client();
 const config = require("./resources/config.json");
 const config_type = config.septbot;
 
-const channel_local_id = '769382925283098634';
-const channel_global_id = '769409279496421386';
+const channel_local_id = '771935127558422548';
+const channel_global_id = '771935127558422548';
 const channel_snitch_id = '742871763758743574';
 const relay_category_id = '771935127558422548';
 const vcs_to_relay = [742831212711772265];
@@ -163,14 +163,14 @@ client.on('message', async message => {
                             } else {
                                 player_activity[clean_log[2]]++;
                             }
-                            console.log(player_activity)
                         }
                     })
                     let embed = new Discord.MessageEmbed()
                         .setTitle(`Snitch activity`)
                         .setDescription(`For the last ${count} logs`)
                         .addField(`Top players for this period`, topActivity(player_activity))
-                    //.setImage(graphActivity(snitch_activity));
+                        .attachFiles(graphActivity(snitch_activity))
+                        .setImage("attachment://image.png");
                     message.channel.send(embed)
                     message.channel.stopTyping()
                 } catch (e) {
@@ -214,18 +214,35 @@ client.on('message', async message => {
                 labels: Object.keys(data).reverse(),
                 datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }]
             },
-            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
         };
-        return canvas.renderToBufferSync(configuration);
+        const attachment = new Discord.MessageAttachment(canvas.renderToBufferSync(configuration), "image.png");
+        return attachment;
     }
     function topActivity({ ...data }) {
-        let max = 0;
-        for (entry in Object.keys(data)) {
-            if (data[entry] > max) {
-                
+        data.zero = 0;
+        let sorted = [];
+        let max = ['zero', 'zero', 'zero'];
+        let count = 0;
+        for (entry of Object.keys(data)) {
+            if (data[entry] > data[max[0]]) {
+                max[0] = entry;
+            }
+            count += data[entry];
+        }
+        for (entry of Object.keys(data)) {
+            if (data[entry] < data[max[0]] && data[entry] > data[max[1]]) {
+                max[1] = entry;
             }
         }
-        return sorted;
+        for (entry of Object.keys(data)) {
+            if (data[entry] < data[max[1]] && data[entry] > data[max[2]]) {
+                max[2] = entry;
+            }
+        }
+        for (entry of max) {
+            sorted.push(Math.round(data[entry] * 100 / count)+ '% ' + entry);
+        }
+        return sorted.join('\n');
     }
 })
 client.on('message', message => {
