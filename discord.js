@@ -125,6 +125,7 @@ client.on('message', async message => {
                 try {
                     message.channel.startTyping()
                     let snitch_activity = {};
+                    let player_activity = {};
                     let messages;
                     if (args[1] < 100) {
                         messages = Array.from(await channel_snitch.messages.fetch({ limit: args[1] }));
@@ -157,10 +158,20 @@ client.on('message', async message => {
                                 snitch_activity[date].push([clean_log[2], clean_log[3] + clean_log[4]]);
                                 count++;
                             }
+                            if (!(clean_log[2] in player_activity)) {
+                                player_activity[clean_log[2]] = 1;
+                            } else {
+                                player_activity[clean_log[2]]++;
+                            }
                         }
                     })
-                    message.channel.send(`Collected ${count} snitch logs, from ${Object.keys(snitch_activity)[Object.keys(snitch_activity).length - 1]}`)
-                    message.channel.send(graphActivity(snitch_activity));
+                    let embed = new Discord.MessageEmbed()
+                        .setTitle(`Snitch activity`)
+                        .setDescription(`For the last ${count} logs`)
+                        .addField(`Top players for this period`, topActivity(player_activity))
+                        .attachFiles(graphActivity(snitch_activity))
+                        .setImage("attachment://image.png");
+                    message.channel.send(embed)
                     message.channel.stopTyping()
                 } catch (e) {
                     console.log(e)
@@ -203,10 +214,35 @@ client.on('message', async message => {
                 labels: Object.keys(data).reverse(),
                 datasets: [{ label: 'Snitch Activity', data: Object.values(data).reverse(), backgroundColor: '#2f2fc4' }]
             },
-            options: { scales: { yAxes: [{ ticks: { suggestedMax: 100 } }] } }
         };
-        const attachment = new MessageAttachment(canvas.renderToBufferSync(configuration));
+        const attachment = new Discord.MessageAttachment(canvas.renderToBufferSync(configuration), "image.png");
         return attachment;
+    }
+    function topActivity({ ...data }) {
+        data.zero = 0;
+        let sorted = [];
+        let max = ['zero', 'zero', 'zero'];
+        let count = 0;
+        for (entry of Object.keys(data)) {
+            if (data[entry] > data[max[0]]) {
+                max[0] = entry;
+            }
+            count += data[entry];
+        }
+        for (entry of Object.keys(data)) {
+            if (data[entry] < data[max[0]] && data[entry] > data[max[1]]) {
+                max[1] = entry;
+            }
+        }
+        for (entry of Object.keys(data)) {
+            if (data[entry] < data[max[1]] && data[entry] > data[max[2]]) {
+                max[2] = entry;
+            }
+        }
+        for (entry of max) {
+            sorted.push(Math.round(data[entry] * 100 / count)+ '% ' + entry);
+        }
+        return sorted.join('\n');
     }
 })
 client.on('message', message => {
