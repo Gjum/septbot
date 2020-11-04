@@ -23,6 +23,7 @@ const channel_global_id = '769409279496421386';
 const channel_snitch_id = '742871763758743574';
 const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
+const trusted_users = [145342519784374272, 214874419301056512];
 
 const options = {
     host: "mc.civclassic.com",
@@ -35,6 +36,7 @@ const options = {
 let bot = mineflayer.createBot(options);
 let lastDMSentToPlayer = null;
 let lastVCBroadcast = null;
+let last_invite_channel = null;
 bindEvents(bot);
 
 let nextChatTs = 0;
@@ -56,7 +58,6 @@ client.on('ready', () => {
     relay_category = client.channels.cache.get(relay_category_id);
     channelDeletion.start()
 })
-
 
 let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
     channelDeletionDebug()
@@ -87,7 +88,7 @@ client.on('message', message => {
         channelDeletionDebug();
     }
     if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        && (message.channel.id !== channel_local.id) && (message.channel.id !== channel_global.id) && (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
+        || (message.channel.id !== channel_local.id) || (message.channel.id !== channel_global.id) || (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
         return;
     }
     if (message.content[0] === prefix) return;
@@ -187,8 +188,25 @@ client.on('message', async message => {
                 }
                 let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
                 fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + args[1] + "\n");
+            case 'invite':
+                last_invite_channel = message.channel
+                if (!trusted_users.includes(parseInt(message.author.id))) {
+                    return;
+                }
+                let player = args[1];
+                let group_preset = args[2];
+                fs.readFileSync('resources/group_presets', 'utf-8').split(/\r?\n/).forEach(function (line) {
+                    let l = line.split(" ")
+                    let preset_line = l[0];
+                    if (group_preset === preset_line) {
+                        for (let i = 1; i < l.length; i+=2) {
+                            message.channel.send(`Invited ${player} to ${l[i]} ${l[i+1]}`)
+                            sendChat(`/nlip ${l[i]} ${player} ${l[i+1]}`)
+                        }
+                    }
+                })
+                break
         }
-        return;
     }
     function graphActivity({ ...data }) {
         //softmax - %age
@@ -271,7 +289,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
         })
         if (i >= 7) {
             if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 100) {
-                bot.chat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
+                sendChat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
                 lastVCBroadcast = Date.now();
             }
         }
@@ -314,6 +332,8 @@ function bindEvents(bot) {
         let joined_game = jsonMsg.toString().match(/^(\S+) has joined the game/);
         let left_game = jsonMsg.toString().match(/^(\S+) has left the game/);
         let ignoring = jsonMsg.toString().match(/.*that player is ignoring you./i);
+        let player_already_member = jsonMsg.toString().match(/^Player is already a member./i);
+        let never_played_before = jsonMsg.toString().match(/^The player has never played before/i);
         // todo : parse for discord commands (eg. %respond)
 
         if (group_chat) {
@@ -344,13 +364,13 @@ function bindEvents(bot) {
                 await new_channel.send("This relay was randomly selected as __meme__.");
                 prompt = getRandomLine('resources/message_prompts_meme');
             }
-            bot.chat(`/tell ${new_player[1]} ${prompt}`);
+            sendChat(`/tell ${new_player[1]} ${prompt}`);
             await new_channel.send(`\`${prompt}\``);
             // To Do : only send this reminder if the newfriend has not responded already
             if (Math.floor(Math.random() * 2) + 1 !== 1) {
                 setTimeout(async function(){
                     let reminder = `If you need any help ${new_player[1]} you can respond to messages with /r`
-                    await bot.chat(`/tell ${new_player[1]} ${reminder}`);
+                    await sendChat(`/tell ${new_player[1]} ${reminder}`);
                     await new_channel.send(`\`${reminder}\``);
                 }, 5*1000);
             }
@@ -407,6 +427,10 @@ function bindEvents(bot) {
                     player_channel.setName(sanitized_username)
                 }
             })
+        } else if (player_already_member && last_invite_channel) {
+            last_invite_channel.send(player_already_member[0])
+        } else if (never_played_before && last_invite_channel) {
+            last_invite_channel.send(never_played_before[0])
         }
     })
 }
@@ -418,9 +442,14 @@ function relog() {
 }
 
 function getRandomLine(filename) {
-    var data = fs.readFileSync(filename, "utf8");
-    var lines = data.split('\n');
-    return lines[Math.floor(Math.random() * lines.length)];
+    let data = fs.readFileSync(filename, "utf8");
+    let lines = data.split('\n');
+    let rand =  lines[Math.floor(Math.random() * lines.length)];
+    if (rand === null || rand === '') {
+        getRandomLine(filename);
+    } else {
+        return rand;
+    }
 }
 
 function sleep(ms) {
