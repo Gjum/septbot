@@ -314,7 +314,7 @@ function bindEvents(bot) {
             if (Math.floor(Math.random() * 2) + 1 !== 1) {
                 setTimeout(async function(){
                     let reminder = `If you need any help ${new_player[1]} you can respond to messages with /r`
-                    await new_channel.send(`/tell ${new_player[1]} ${reminder}`);
+                    await bot.chat(`/tell ${new_player[1]} ${reminder}`);
                     await new_channel.send(`\`${reminder}\``);
                 }, 5*1000);
             }
