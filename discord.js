@@ -445,8 +445,8 @@ function getRandomLine(filename) {
     let data = fs.readFileSync(filename, "utf8");
     let lines = data.split('\n');
     let rand =  lines[Math.floor(Math.random() * lines.length)];
-    if (rand === null || rand === '') {
-        getRandomLine(filename);
+    if (rand === undefined || rand === null || rand === '') {
+        return getRandomLine(filename);
     } else {
         return rand;
     }
