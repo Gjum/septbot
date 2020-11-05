@@ -87,8 +87,8 @@ client.on('message', message => {
     if (message.member.id === '145342519784374272' && message.content === "!relaypurge") { //temp
         channelDeletionDebug();
     }
-    if (!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-        || (message.channel.id !== channel_local.id) || (message.channel.id !== channel_global.id) || (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
+    if ((!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
+       && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id) || (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
         return;
     }
     if (message.content[0] === prefix) return;
