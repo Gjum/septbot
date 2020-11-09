@@ -37,6 +37,7 @@ const options = {
 let bot = mineflayer.createBot(options);
 let lastDMSentToPlayer = null;
 let lastVCBroadcast = null;
+let lastVCJoinBroadcasts = {};
 let last_invite_channel = null;
 bindEvents(bot);
 
@@ -86,9 +87,6 @@ function channelDeletionDebug() {
 client.on('message', message => {
     if (!message.member) {
         return;
-    }
-    if (message.member.id === '145342519784374272' && message.content === (prefix + "relaypurge")) { //todo : temp
-        channelDeletionDebug();
     }
     if ((!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
        && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id) || (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
@@ -207,6 +205,12 @@ client.on('message', async message => {
                     }
                 })
                 break
+            case 'relaypurge':
+                if (!trusted_users.includes(parseInt(message.author.id))) {
+                    return;
+                }
+                channelDeletionDebug();
+                break
         }
     }
     function graphActivity({ ...data }) {
@@ -277,11 +281,17 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
     if (newUserChannel !== null && !vcs_to_relay.includes(parseInt(newUserChannel.id))) {
         return;
     }
-    if (oldUserChannel === null && newUserChannel != null) {
-        // todo : Spam protection for repeated reconnections
-        if (!newMember.member.user.bot) {
-            sendChat(`[${newMember.member.user.username} joined voicechat!]`)
+    if ((oldUserChannel === null || !vcs_to_relay.includes(parseInt(oldUserChannel.id))) && newUserChannel != null) {
+        if (newMember.member.user.bot) {
+            return;
         }
+        if (lastVCJoinBroadcasts[newMember.member.user.id] !== undefined ) {
+            if ((Date.now() - lastVCJoinBroadcasts[newMember.member.user.id]) / 1000 / 60 < 10) {
+                return
+            }
+        }
+        lastVCJoinBroadcasts[newMember.member.user.id] = Date.now();
+        sendChat(`[${newMember.member.user.username} joined voicechat!]`)
         let i = 0;
         newUserChannel.members.forEach(m => {
             if (!m.user.bot) {
