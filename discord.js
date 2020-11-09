@@ -21,6 +21,7 @@ const config_type = config.septbot;
 const channel_local_id = '769382925283098634';
 const channel_global_id = '769409279496421386';
 const channel_snitch_id = '742871763758743574';
+const channel_debug_id = '775163751863156757';
 const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
 const trusted_users = [145342519784374272, 214874419301056512];
@@ -49,12 +50,13 @@ function sendChat(msg) {
     }, thisChatTimeout)
 }
 
-let channel_local, channel_global, relay_category, channel_snitch;
+let channel_local, channel_global, relay_category, channel_snitch, channel_debug;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
     channel_local = client.channels.cache.get(channel_local_id);
     channel_global = client.channels.cache.get(channel_global_id);
     channel_snitch = client.channels.cache.get(channel_snitch_id);
+    channel_debug = client.channels.cache.get(channel_debug_id)
     relay_category = client.channels.cache.get(relay_category_id);
     channelDeletion.start()
 })
@@ -69,8 +71,9 @@ function channelDeletionDebug() {
         c.messages.fetch({ limit: 1 }).then(messages => {
             messages.forEach(m => {
                 if (m) {
-                    if ((Date.now() - m.createdAt) / 1000 / 60 / 60 > 48) {
+                    if ((Date.now() - m.createdAt) / 1000 / 60 / 60 > 24) {
                         console.log("Deleting " + c.name);
+                        deleteLineFromFile('resources/newfriend_channels.txt', c.id)
                         c.delete();
                     }
                 }
@@ -181,13 +184,11 @@ client.on('message', async message => {
                 }
                 break;
             case 'tell':
-                let sanitized_username = args[1].toLowerCase().replace(/[^a-z\d-]/g, "");
-                let channel_options = {
-                    topic: 'A channel to message ' + args[1],
-                    parent: relay_category,
+                let new_channel = await createRelayChannel(message, args[1]);
+                if (!new_channel) {
+                    return
                 }
-                let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
-                fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + args[1] + "\n");
+                message.channel.send("Created a new relay")
             case 'invite':
                 last_invite_channel = message.channel
                 if (!trusted_users.includes(parseInt(message.author.id))) {
@@ -346,13 +347,10 @@ function bindEvents(bot) {
         } else if (death_message) {
             channel_local.send(`**${death_message[1]}** was killed by **${death_message[2]}** with ${death_message[3]}`);
         } else if (new_player) {
-            let sanitized_username = new_player[1].toLowerCase().replace(/[^a-z\d-]/g, "");
-            let channel_options = {
-                topic: 'A channel to message ' + new_player[1],
-                parent: relay_category,
+            let new_channel = await createRelayChannel(null, new_player[1])
+            if (!new_channel) {
+                return
             }
-            let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
-            fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + new_player[1] + "\n");
             if (Math.floor(Math.random() * 4) + 1 === 1) {
                 await sleep(Math.floor(Math.random() * (30 - 10) + 10) * 1000)
             }
@@ -386,14 +384,10 @@ function bindEvents(bot) {
                 }
             })
             if (!channel_exists) {
-                console.log("Creating new channel");
-                let sanitized_username = private_message[1].toLowerCase().replace(/[^a-z\d-]/g, "");
-                let channel_options = {
-                    topic: 'A channel to message ' + private_message[1],
-                    parent: relay_category,
+                let new_channel = await createRelayChannel(null, private_message[1])
+                if (!new_channel) {
+                    return
                 }
-                let new_channel = await relay_category.guild.channels.create(sanitized_username, channel_options)
-                fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + private_message[1] + "\n");
                 await new_channel.send(private_message[0])
             }
         } else if (ignoring && lastDMSentToPlayer) {
@@ -441,6 +435,44 @@ function relog() {
     bindEvents(bot);
 }
 
+async function createRelayChannel(message, username){
+    let response_channel
+    if (message) {
+        response_channel = message.channel;
+    } else {
+        response_channel = channel_debug;
+    }
+    if (relay_category.children.size >= 50) {
+        await response_channel.send(`Could not create a channel for ${username}, relay category exceeds 50 channels`)
+        return
+    }
+    let player_channel_found = false
+    fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+        if (line.split(" ")[1] === username) {
+            let player_channel = client.channels.cache.get(line.split(" ")[0]);
+            if (player_channel) {
+                player_channel_found = true;
+            }
+        }
+    })
+    if (player_channel_found) {
+        await response_channel.send(`Channel for ${username} already exists`)
+        return
+    }
+    let channel_options = {
+        topic: 'A channel to message ' + username,
+        parent: relay_category,
+    }
+    let new_channel = await relay_category.guild.channels.create(sanitizeUsernameForDiscord(username), channel_options)
+    fs.appendFileSync('resources/newfriend_channels.txt', new_channel.id + " " + username + "\n");
+    return new_channel;
+
+}
+
+function sanitizeUsernameForDiscord(username) {
+    return username.toLowerCase().replace(/[^a-z\d-]/g, "");
+}
+
 function getRandomLine(filename) {
     let data = fs.readFileSync(filename, "utf8");
     let lines = data.split('\n');
@@ -450,6 +482,18 @@ function getRandomLine(filename) {
     } else {
         return rand;
     }
+}
+
+function deleteLineFromFile(filename, channel_id) {
+    let new_file = '';
+    let data = fs.readFileSync(filename, "utf8");
+    let lines = data.split('\n');
+    lines.forEach((line) => {
+        if (line.split(" ")[0] !== channel_id) {
+            new_file += line + "\n"
+        }
+    });
+    fs.writeFileSync('resources/newfriend_channels.txt', new_file.replace(/\n$/, ""), {encoding:'utf8',flag:'w'})
 }
 
 function sleep(ms) {
