@@ -87,7 +87,7 @@ client.on('message', message => {
     if (!message.member) {
         return;
     }
-    if (message.member.id === '145342519784374272' && message.content === "!relaypurge") { //temp
+    if (message.member.id === '145342519784374272' && message.content === (prefix + "relaypurge")) { //todo : temp
         channelDeletionDebug();
     }
     if ((!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
@@ -351,6 +351,7 @@ function bindEvents(bot) {
             if (!new_channel) {
                 return
             }
+            new_channel.setName("🟢-" + sanitizeUsernameForDiscord(new_player[1]))
             if (Math.floor(Math.random() * 4) + 1 === 1) {
                 await sleep(Math.floor(Math.random() * (30 - 10) + 10) * 1000)
             }
