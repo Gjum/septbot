@@ -15,10 +15,11 @@ const client = new Discord.Client();
      "password": string,
     }
 }} */
+
 const config = require("./resources/config.json");
 const config_type = config.septbot;
-
 const channel_local_id = '769382925283098634';
+const channel_local_mta_id = '775499408309354517';
 const channel_global_id = '769409279496421386';
 const channel_snitch_id = '742871763758743574';
 const channel_debug_id = '775163751863156757';
@@ -26,35 +27,50 @@ const relay_category_id = '770391959432593458';
 const vcs_to_relay = [742831212711772265];
 const trusted_users = [145342519784374272, 214874419301056512];
 
-const options = {
-    host: "mc.civclassic.com",
-    port: 25565,
-    username: config_type.username,
-    password: config_type.password,
-    version: "1.16.1",
-};
+let bots = {};
 
-let bot = mineflayer.createBot(options);
 let lastDMSentToPlayer = null;
 let lastVCBroadcast = null;
 let lastVCJoinBroadcasts = {};
 let last_invite_channel = null;
-bindEvents(bot);
 
 let nextChatTs = 0;
-/** @param {string} msg */
-function sendChat(msg) {
+
+multiBot();
+
+function multiBot() {
+    for (let key in config) {
+        if (config.hasOwnProperty(key)) {
+            let options = {
+                host: "mc.civclassic.com",
+                port: 25565,
+                username: config[key].username,
+                password: config[key].password,
+                version: "1.16.1",
+            };
+            bots[key] = mineflayer.createBot(options);
+            bindEvents(bots[key], key);
+        }
+    }
+}
+
+
+/** @param {string} msg
+ * @param bot_selected
+ */
+function sendChat(msg, bot_selected = 'septbot') {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
     setTimeout(() => {
-        if (bot) bot.chat(msg)
+        if (bots[bot_selected]) bots[bot_selected].chat(msg)
     }, thisChatTimeout)
 }
 
-let channel_local, channel_global, relay_category, channel_snitch, channel_debug;
+let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
     channel_local = client.channels.cache.get(channel_local_id);
+    channel_local_mta = client.channels.cache.get(channel_local_mta_id);
     channel_global = client.channels.cache.get(channel_global_id);
     channel_snitch = client.channels.cache.get(channel_snitch_id);
     channel_debug = client.channels.cache.get(channel_debug_id)
@@ -89,7 +105,7 @@ client.on('message', message => {
         return;
     }
     if ((!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-       && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id) || (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
+       && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id && message.channel.id !== channel_local_mta.id) || (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
         return;
     }
     if (message.content[0] === prefix) return;
@@ -108,6 +124,10 @@ client.on('message', message => {
             sendChat(`/g ! ${message.author.username}: ${clean_line}`)
         }
         message.react('✅');
+    } else if (message.channel.id === channel_local_mta.id) {
+        for (const clean_line of clean_lines) {
+            sendChat(`${message.author.username}: ${clean_line}`, "mtatree")
+        }
     }
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
@@ -309,8 +329,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 
 client.login(config_type.client_token)
 
-function bindEvents(bot) {
-
+function bindEvents(bot, key) {
     lastDMSentToPlayer = null;
 
     bot.on('error', function (err) {
@@ -318,7 +337,10 @@ function bindEvents(bot) {
         if (err.code === undefined) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
             console.log('Will retry to connect in 30 seconds.');
-            setTimeout(relog, 30000);
+            if (!key) {
+                return ;
+            }
+            setTimeout(function() {relog(key) }, 30000 + (getRandomArbitrary(0,60) * 10));
         }
     });
 
@@ -326,12 +348,12 @@ function bindEvents(bot) {
         console.log("Bot has ended");
         fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
             let player_channel = client.channels.cache.get(line.split(" ")[0]);
-            if (player_channel != undefined && player_channel.name.includes("🟢")) {
+            if (player_channel !== undefined && player_channel.name.includes("🟢")) {
                 let sanitized_username = line.split(" ")[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                 player_channel.setName(sanitized_username)
             }
         })
-        setTimeout(relog, 6 * 1000);
+        setTimeout(function() {relog(key) }, 6 * 1000 + (getRandomArbitrary(0,60) * 10));
     });
 
     bot.on('message', async (jsonMsg, position) => {
@@ -347,13 +369,21 @@ function bindEvents(bot) {
         let never_played_before = jsonMsg.toString().match(/^The player has never played before/i);
         // todo : parse for discord commands (eg. %respond)
 
+        if (local_chat) {
+            if (bot.username !== 'MtAugusta') {
+                channel_local_mta.send(`[**${local_chat[1]}**] ${Util.removeMentions(local_chat[2])}`);
+            } else {
+                channel_local.send(`[**${local_chat[1]}**] ${Util.removeMentions(local_chat[2])}`);
+            }
+        }
+        if (bot.username !== 'MtAugusta') {
+            return
+        }
         if (group_chat) {
             if (group_chat[2] === bot.username) return;
             if (group_chat[1] === "!") {
                 channel_global.send(`\`[${group_chat[1]}]\` [**${group_chat[2]}**] ${Util.removeMentions(group_chat[3])}`);
             }
-        } else if (local_chat) {
-            channel_local.send(`[**${local_chat[1]}**] ${Util.removeMentions(local_chat[2])}`);
         } else if (death_message) {
             channel_local.send(`**${death_message[1]}** was killed by **${death_message[2]}** with ${death_message[3]}`);
         } else if (new_player) {
@@ -440,10 +470,17 @@ function bindEvents(bot) {
     })
 }
 
-function relog() {
+function relog(key) {
     console.log("Attempting to reconnect...");
-    bot = mineflayer.createBot(options);
-    bindEvents(bot);
+    let options = {
+        host: "mc.civclassic.com",
+        port: 25565,
+        username: config[key].username,
+        password: config[key].password,
+        version: "1.16.1",
+    };
+    bots[config[key].name] = mineflayer.createBot(options);
+    bindEvents(bots[config[key].name]);
 }
 
 async function createRelayChannel(message, username){
@@ -509,4 +546,8 @@ function deleteLineFromFile(filename, channel_id) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getRandomArbitrary(min, max) {
+    return Math.random() * (max - min) + min;
 }
