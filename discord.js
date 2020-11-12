@@ -494,7 +494,7 @@ function bindEvents(bot, key) {
 
     function update_stats() {
         let online_players = bot.players
-        let message = "**CivClassic Server Info**\nTPS: " + TPS + "\n" + "**" + online_players.length + " online players**\n"
+        let message = "**CivClassic Server Info**\nTPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
         for (let player in online_players) {
            message += online_players[player]['username'] + '\n';
         }
