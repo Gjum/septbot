@@ -290,9 +290,9 @@ client.on('message', async message => {
 })
 client.on('message', message => {
     if (message.channel.type !== "text") return
-    if (message.author.bot) return
-    if (/dr[-_. ]*o[-_. ]*racle?/i.test(message.content))
-        message.channel.send('Roleplay detected');
+    if (message.author.id === client.user.id) return
+    if (/R[o*]le *pl[a*]y[: ]*detected/i.test(message.content))
+        message.channel.send('Get on with it');
 })
 
 client.on('voiceStateUpdate', (oldMember, newMember) => {
