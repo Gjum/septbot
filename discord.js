@@ -24,6 +24,10 @@ const channel_global_id = '769409279496421386';
 const channel_snitch_id = '742871763758743574';
 const channel_debug_id = '775163751863156757';
 const relay_category_id = '770391959432593458';
+const info_channel_id = '776520454424231937';
+const info_message_id = '776524752604364830';
+const primary_account = 'MtAugusta';
+
 const vcs_to_relay = [742831212711772265];
 const trusted_users = [145342519784374272, 214874419301056512];
 
@@ -33,6 +37,7 @@ let lastDMSentToPlayer = null;
 let lastVCBroadcast = null;
 let lastVCJoinBroadcasts = {};
 let last_invite_channel = null;
+let TPS = null;
 
 let nextChatTs = 0;
 
@@ -66,7 +71,7 @@ function sendChat(msg, bot_selected = 'septbot') {
     }, thisChatTimeout)
 }
 
-let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta;
+let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta, info_channel, info_message;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
     channel_local = client.channels.cache.get(channel_local_id);
@@ -75,12 +80,13 @@ client.on('ready', () => {
     channel_snitch = client.channels.cache.get(channel_snitch_id);
     channel_debug = client.channels.cache.get(channel_debug_id)
     relay_category = client.channels.cache.get(relay_category_id);
+    info_channel = client.channels.cache.get(info_channel_id);
+    //info_message = info_channel.messages.fetch(info_message_id)
     channelDeletion.start()
 })
 
 let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
     channelDeletionDebug()
-
 });
 
 function channelDeletionDebug() {
@@ -332,6 +338,14 @@ client.login(config_type.client_token)
 function bindEvents(bot, key) {
     lastDMSentToPlayer = null;
 
+    bot.on('spawn', function () {
+        if (bot.username !== primary_account) {
+            return;
+        }
+        setInterval(update_stats, 300000);
+        setTimeout(update_stats, 1000*5);
+    });
+
     bot.on('error', function (err) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
         if (err.code === undefined) {
@@ -345,6 +359,11 @@ function bindEvents(bot, key) {
     });
 
     bot.on('end', function () {
+        if (bot.username === primary_account) {
+            info_channel.messages.fetch(info_message_id).then(msg => {
+                msg.edit("Server and/or bot is restarting or offline \:(")
+            })
+        }
         console.log("Bot has ended");
         fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
             let player_channel = client.channels.cache.get(line.split(" ")[0]);
@@ -355,6 +374,10 @@ function bindEvents(bot, key) {
         })
         setTimeout(function() {relog(key) }, 6 * 1000 + (getRandomArbitrary(0,60) * 10));
     });
+
+    bot._client.on("playerlist_header", data => {
+        TPS = data['footer'].match(/§9(\d*\.?\d*) TPS/)[1]
+    })
 
     bot.on('message', async (jsonMsg, position) => {
         let group_chat = jsonMsg.toString().match(/\[(\S+)\] (\S+): (.+)/)
@@ -370,13 +393,13 @@ function bindEvents(bot, key) {
         // todo : parse for discord commands (eg. %respond)
 
         if (local_chat) {
-            if (bot.username !== 'MtAugusta') {
+            if (bot.username !== primary_account) {
                 channel_local_mta.send(`[**${local_chat[1]}**] ${Util.removeMentions(local_chat[2])}`);
             } else {
                 channel_local.send(`[**${local_chat[1]}**] ${Util.removeMentions(local_chat[2])}`);
             }
         }
-        if (bot.username !== 'MtAugusta') {
+        if (bot.username !== primary_account) {
             return
         }
         if (group_chat) {
@@ -468,19 +491,33 @@ function bindEvents(bot, key) {
             last_invite_channel.send(never_played_before[0])
         }
     })
+
+    function update_stats() {
+        let online_players = bot.players
+        let message = "**CivClassic Server Info**\nTPS: " + TPS + "\n" + "**" + online_players.length + " online players**\n"
+        for (let player in online_players) {
+           message += online_players[player]['username'] + '\n';
+        }
+        info_channel.messages.fetch(info_message_id).then(msg => {
+            msg.edit(message)
+        })
+    }
 }
 
 function relog(key) {
     console.log("Attempting to reconnect...");
-    let options = {
-        host: "mc.civclassic.com",
-        port: 25565,
-        username: config[key].username,
-        password: config[key].password,
-        version: "1.16.1",
-    };
-    bots[config[key].name] = mineflayer.createBot(options);
-    bindEvents(bots[config[key].name]);
+    console.log(key)
+    if (config.hasOwnProperty(key)) {
+        let options = {
+            host: "mc.civclassic.com",
+            port: 25565,
+            username: config[key].username,
+            password: config[key].password,
+            version: "1.16.1",
+        };
+        bots[config[key].name] = mineflayer.createBot(options);
+        bindEvents(bots[config[key].name], key);
+    }
 }
 
 async function createRelayChannel(message, username){
