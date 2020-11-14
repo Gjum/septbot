@@ -74,6 +74,7 @@ function sendChat(msg, bot_selected = 'septbot') {
 let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta, info_channel, info_message;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
+    client.user.setActivity("Editing CivWiki", { type: "CUSTOM_STATUS"})
     channel_local = client.channels.cache.get(channel_local_id);
     channel_local_mta = client.channels.cache.get(channel_local_mta_id);
     channel_global = client.channels.cache.get(channel_global_id);
@@ -505,7 +506,7 @@ function bindEvents(bot, key) {
         let online_players = bot.players
         let message = "**CivClassic Server Info** (updated every 4 minutes)\nTPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
         for (let player in online_players) {
-           message += online_players[player]['username'].replace('_', "\_") + '\n';
+           message += online_players[player]['username'].replace('_', "\\_") + '\n';
         }
         info_channel.messages.fetch(info_message_id).then(msg => {
             msg.edit(message)
