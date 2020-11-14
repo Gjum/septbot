@@ -83,6 +83,7 @@ client.on('ready', () => {
     info_channel = client.channels.cache.get(info_channel_id);
     //info_message = info_channel.messages.fetch(info_message_id)
     channelDeletion.start()
+    channel_debug.send("Septbot started (manual restart or crash?)")
 })
 
 let channelDeletion = new cron.CronJob('00 00 10 * * *', () => {
@@ -342,7 +343,7 @@ function bindEvents(bot, key) {
         if (bot.username !== primary_account) {
             return;
         }
-        setInterval(update_stats, 300000);
+        setInterval(update_stats, 4*60*1000);
         setTimeout(update_stats, 1000*5);
     });
 
@@ -426,16 +427,23 @@ function bindEvents(bot, key) {
                 await new_channel.send("This relay was randomly selected as __meme__.");
                 prompt = getRandomLine('resources/message_prompts_meme');
             }
-            sendChat(`/tell ${new_player[1]} ${prompt}`);
-            await new_channel.send(`\`${prompt}\``);
-            // To Do : only send this reminder if the newfriend has not responded already
-            if (Math.floor(Math.random() * 2) + 1 !== 1) {
-                setTimeout(async function(){
-                    let reminder = `If you need any help ${new_player[1]} you can respond to messages with /r`
-                    await sendChat(`/tell ${new_player[1]} ${reminder}`);
-                    await new_channel.send(`\`${reminder}\``);
-                }, 5*1000);
+            const wait_times = [0, 15, 30] // in seconds
+            let messsage_wait_time = wait_times[Math.floor(Math.random() * wait_times.length)];
+            if (messsage_wait_time !== 0 ) {
+                await new_channel.send(`waiting ${messsage_wait_time} seconds before sending prompt...`)
             }
+            setTimeout(async function(){
+                sendChat(`/tell ${new_player[1]} ${prompt}`);
+                await new_channel.send(`\`${prompt}\``);
+                // To Do : only send this reminder if the newfriend has not responded already
+                if (Math.floor(Math.random() * 2) + 1 !== 1) {
+                    setTimeout(async function(){
+                        let reminder = `If you need any help ${new_player[1]} you can respond to messages with /r`
+                        await sendChat(`/tell ${new_player[1]} ${reminder}`);
+                        await new_channel.send(`\`${reminder}\``);
+                    }, 5*1000);
+                }
+            }, messsage_wait_time * 1000)
         } else if (private_message) {
             let channel_exists = false;
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
@@ -471,6 +479,7 @@ function bindEvents(bot, key) {
                     let sanitized_username = joined_game[1].toLowerCase().replace(/[^a-z\d-]/g, "");
                     player_channel.send(joined_game[0])
                     player_channel.setName("🟢-" + sanitized_username)
+                    //todo : check if newly joined player who momentarily disconnected, if so resend prompt
                 }
             })
         } else if (left_game) {
@@ -494,9 +503,9 @@ function bindEvents(bot, key) {
 
     function update_stats() {
         let online_players = bot.players
-        let message = "**CivClassic Server Info**\nTPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
+        let message = "**CivClassic Server Info** (updated every 4 minutes)\nTPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
         for (let player in online_players) {
-           message += online_players[player]['username'] + '\n';
+           message += online_players[player]['username'].replace('_', "\_") + '\n';
         }
         info_channel.messages.fetch(info_message_id).then(msg => {
             msg.edit(message)
