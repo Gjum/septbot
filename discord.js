@@ -128,8 +128,14 @@ client.on('message', message => {
             sendChat(`${message.author.username}: ${clean_line}`)
         }
     } else if (message.channel.id === channel_global.id) {
-        for (const clean_line of clean_lines) {
-            sendChat(`/g ! ${message.author.username}: ${clean_line}`)
+        if (trusted_users.includes(parseInt(message.author.id)) && message.content[0] === ":") {
+            for (const clean_line of clean_lines) {
+                sendChat(`/g ! ${clean_line}`)
+            }
+        } else {
+            for (const clean_line of clean_lines) {
+                sendChat(`/g ! ${message.author.username}: ${clean_line}`)
+            }
         }
         //message.react('✅');
     } else if (message.channel.id === channel_local_mta.id) {
