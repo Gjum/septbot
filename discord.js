@@ -131,7 +131,7 @@ client.on('message', message => {
         for (const clean_line of clean_lines) {
             sendChat(`/g ! ${message.author.username}: ${clean_line}`)
         }
-        message.react('✅');
+        //message.react('✅');
     } else if (message.channel.id === channel_local_mta.id) {
         for (const clean_line of clean_lines) {
             sendChat(`${message.author.username}: ${clean_line}`, "mtatree")
@@ -405,7 +405,7 @@ function bindEvents(bot, key) {
             return
         }
         if (group_chat) {
-            if (group_chat[2] === bot.username) return;
+            //if (group_chat[2] === bot.username) return;
             if (group_chat[1] === "!") {
                 channel_global.send(`\`[${group_chat[1]}]\` [**${group_chat[2]}**] ${Util.removeMentions(group_chat[3])}`);
             }
