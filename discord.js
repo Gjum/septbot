@@ -128,7 +128,8 @@ client.on('message', message => {
             sendChat(`${message.author.username}: ${clean_line}`)
         }
     } else if (message.channel.id === channel_global.id) {
-        if (trusted_users.includes(parseInt(message.author.id)) && message.content[0] === ":") {
+        if (trusted_users.includes(parseInt(message.author.id)) && clean_lines[0] === ":") {
+            clean_lines = clean_lines.substring(1)
             for (const clean_line of clean_lines) {
                 sendChat(`/g ! ${clean_line}`)
             }
