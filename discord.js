@@ -516,7 +516,7 @@ function bindEvents(bot, key) {
         let online_players = bot.players
         if (online_players === null ){
             message += "```Server or bot is currently offline :(```"
-        } else {z
+        } else {
             message += "TPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
             for (let player in online_players) {
                 message += online_players[player]['username'].replace('_', "\\_") + '\n';
