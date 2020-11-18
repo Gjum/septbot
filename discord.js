@@ -116,7 +116,7 @@ client.on('message', message => {
         return;
     }
     if ((!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
-       && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id && message.channel.id !== channel_local_mta.id) || (message.member.roles.cache.some(role => role.name === 'CivBot'))) {
+       && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id && message.channel.id !== channel_local_mta.id) || (message.member.roles.cache.some(role => role.name === 'SeptBot'))) {
         return;
     }
     if (message.content[0] === prefix) return;
