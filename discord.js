@@ -67,7 +67,9 @@ function sendChat(msg, bot_selected = 'septbot') {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
     console.log("DEBUG : In SendChat")
-    console.log(bots[bot_selected])
+    if (bots[bot_selected] === undefined) {
+        console.log("undefined in sendchat :/")
+    }
     setTimeout(() => {
         if (bots[bot_selected]) bots[bot_selected].chat(msg)
     }, thisChatTimeout)
