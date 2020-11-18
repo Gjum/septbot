@@ -18,6 +18,9 @@ const client = new Discord.Client();
 
 const config = require("./resources/config.json");
 const config_type = config.septbot;
+const primary_account = 'MtAugusta';
+const trusted_users = [145342519784374272, 214874419301056512];
+
 const channel_local_id = '769382925283098634';
 const channel_local_mta_id = '775499408309354517';
 const channel_global_id = '769409279496421386';
@@ -26,10 +29,8 @@ const channel_debug_id = '775163751863156757';
 const relay_category_id = '770391959432593458';
 const info_channel_id = '776520454424231937';
 const info_message_id = '776524752604364830';
-const primary_account = 'MtAugusta';
-
 const vcs_to_relay = [742831212711772265];
-const trusted_users = [145342519784374272, 214874419301056512];
+
 
 let bots = {};
 
@@ -59,22 +60,23 @@ function multiBot() {
     }
 }
 
-
 /** @param {string} msg
  * @param bot_selected
  */
 function sendChat(msg, bot_selected = 'septbot') {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
+    console.log("DEBUG : In SendChat")
+    console.log(bots[bot_selected])
     setTimeout(() => {
         if (bots[bot_selected]) bots[bot_selected].chat(msg)
     }, thisChatTimeout)
 }
 
-let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta, info_channel, info_message;
+let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta, info_channel;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
-    client.user.setActivity("Editing CivWiki", { type: "CUSTOM_STATUS"})
+    client.user.setActivity("CivWiki", { type: "WATCHING"})
     channel_local = client.channels.cache.get(channel_local_id);
     channel_local_mta = client.channels.cache.get(channel_local_mta_id);
     channel_global = client.channels.cache.get(channel_global_id);
@@ -82,7 +84,6 @@ client.on('ready', () => {
     channel_debug = client.channels.cache.get(channel_debug_id)
     relay_category = client.channels.cache.get(relay_category_id);
     info_channel = client.channels.cache.get(info_channel_id);
-    //info_message = info_channel.messages.fetch(info_message_id)
     channelDeletion.start()
     channel_debug.send("Septbot started (manual restart or crash?)")
 })
@@ -128,6 +129,7 @@ client.on('message', message => {
             sendChat(`${message.author.username}: ${clean_line}`)
         }
     } else if (message.channel.id === channel_global.id) {
+        console.log("DEBUG : message sent in channel_global")
         if (trusted_users.includes(parseInt(message.author.id)) && clean_lines[0] === ":") {
             clean_lines = clean_lines.substring(1)
             for (const clean_line of clean_lines) {
@@ -363,7 +365,7 @@ function bindEvents(bot, key) {
             if (!key) {
                 return ;
             }
-            setTimeout(function() {relog(key) }, 30000 + (getRandomArbitrary(0,60) * 10));
+            setTimeout(function() {relog(key)}, 30000 + (getRandomArbitrary(0,60) * 10));
         }
     });
 
@@ -381,7 +383,7 @@ function bindEvents(bot, key) {
                 player_channel.setName(sanitized_username)
             }
         })
-        setTimeout(function() {relog(key) }, 6 * 1000 + (getRandomArbitrary(0,60) * 10));
+        setTimeout(function() {relog(key)}, 6 * 1000 + (getRandomArbitrary(0,60) * 10));
     });
 
     bot._client.on("playerlist_header", data => {
@@ -510,11 +512,17 @@ function bindEvents(bot, key) {
     })
 
     function update_stats() {
+        let message = "**CivClassic Server Info** (updated every 4 minutes)\n"
         let online_players = bot.players
-        let message = "**CivClassic Server Info** (updated every 4 minutes)\nTPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
-        for (let player in online_players) {
-           message += online_players[player]['username'].replace('_', "\\_") + '\n';
+        if (online_players === null ){
+            message += "```Server or bot is currently offline :(```"
+        } else {z
+            message += "TPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
+            for (let player in online_players) {
+                message += online_players[player]['username'].replace('_', "\\_") + '\n';
+            }
         }
+
         info_channel.messages.fetch(info_message_id).then(msg => {
             msg.edit(message)
         })
@@ -523,7 +531,7 @@ function bindEvents(bot, key) {
 
 function relog(key) {
     console.log("Attempting to reconnect...");
-    console.log(key)
+    console.log("bot= " + key)
     if (config.hasOwnProperty(key)) {
         let options = {
             host: "mc.civclassic.com",
