@@ -125,14 +125,14 @@ client.on('message', message => {
         if (message.channel.id === law_backup_channel.id) {
             return
         }
-        law_backup_channel.send(`${message.author.username}:${message.author.discriminator} (${message.author.id}) sent : `)
+        law_backup_channel.send(`\`${message.author.username}:${message.author.discriminator} (${message.author.id}) sent :\``)
         law_backup_channel.send(Util.removeMentions(message.content))
         //todo : save edits and reactions
         if (message.channel.id === bill_channel_id) {
             const must_contain = ["[bill vote]", "[bill result]", "aye", "nay", "yes", "no"]
             if (!must_contain.some(v => message.content.toLowerCase().includes(v))) {
                 message.delete();
-                law_backup_channel.send(`${message.author.toString()} your message in ${message.channel.toString} does not appear to be a valid legal message. Valid messages may include \"[Bill Vote]\", \"Aye\" or \"Nay\"`)
+                law_backup_channel.send(`${message.author.toString()} your message in ${message.channel.toString()} does not appear to be a valid legal message. Valid messages may include \"[Bill Vote]\", \"Aye\" or \"Nay\"`)
                 return;
             }
         }
