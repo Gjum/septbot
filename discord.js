@@ -422,12 +422,12 @@ function bindEvents(bot, key) {
         let death_message = jsonMsg.toString().match(/^(\S+) was killed by (\S+) (?:with ){1,2}(.+)/);
         let new_player = jsonMsg.toString().match(/^(\S+) is brand new!/);
         let private_message = jsonMsg.toString().match(/^From (\S+): (.+)/);
+        let sent_private_message = jsonMsg.toString().match(/^To (\S+): (.+)/);
         let joined_game = jsonMsg.toString().match(/^(\S+) has joined the game/);
         let left_game = jsonMsg.toString().match(/^(\S+) has left the game/);
         let ignoring = jsonMsg.toString().match(/.*that player is ignoring you./i);
         let player_already_member = jsonMsg.toString().match(/^Player is already a member./i);
         let never_played_before = jsonMsg.toString().match(/^The player has never played before/i);
-        // todo : parse for discord commands (eg. %respond)
 
         if (local_chat) {
             if (bot.username !== primary_account) {
@@ -481,23 +481,9 @@ function bindEvents(bot, key) {
                 }
             }, messsage_wait_time * 1000)
         } else if (private_message) {
-            let channel_exists = false;
-            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
-                if (line.split(" ")[1] === private_message[1]) {
-                    let player_channel = client.channels.cache.get(line.split(" ")[0]);
-                    if (player_channel) {
-                        player_channel.send(`[**${private_message[1]}**] ${Util.removeMentions(private_message[2])}`);
-                        channel_exists = true;
-                    }
-                }
-            })
-            if (!channel_exists) {
-                let new_channel = await createRelayChannel(null, private_message[1])
-                if (!new_channel) {
-                    return
-                }
-                await new_channel.send(private_message[0])
-            }
+            await send_message_in_relay(private_message)
+        } else if (sent_private_message) {
+            await send_message_in_relay(sent_private_message)
         } else if (ignoring && lastDMSentToPlayer) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === lastDMSentToPlayer) {
@@ -535,6 +521,26 @@ function bindEvents(bot, key) {
         } else if (never_played_before && last_invite_channel) {
             last_invite_channel.send(never_played_before[0])
         }
+
+        async function send_message_in_relay(msg) {
+            let channel_exists = false;
+            fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
+                if (line.split(" ")[1] === msg[1]) {
+                    let player_channel = client.channels.cache.get(line.split(" ")[0]);
+                    if (player_channel) {
+                        player_channel.send(`[**${msg[1]}**] ${Util.removeMentions(msg[2])}`);
+                        channel_exists = true;
+                    }
+                }
+            })
+            if (!channel_exists) {
+                let new_channel = await createRelayChannel(null, msg[1])
+                if (!new_channel) {
+                    return
+                }
+                await new_channel.send(msg[0])
+            }
+        }
     })
 
     function update_stats() {
@@ -548,7 +554,6 @@ function bindEvents(bot, key) {
                 message += online_players[player]['username'].replace('_', "\\_") + '\n';
             }
         }
-
         info_channel.messages.fetch(info_message_id).then(msg => {
             msg.edit(message)
         })
