@@ -175,7 +175,8 @@ client.on('message', message => {
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
             for (const clean_line of clean_lines) {
-                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`).then(() => { lastDMSentToPlayer = line.split(" ")[1] })
+                sendChat(`/tell ${line.split(" ")[1]} ${clean_line}`)
+                lastDMSentToPlayer = line.split(" ")[1] //todo : have promise in sendchat
             }
         }
     })
