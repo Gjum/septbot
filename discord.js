@@ -126,7 +126,10 @@ client.on('message', message => {
             return
         }
         law_backup_channel.send(`\`${message.author.username}:${message.author.discriminator} (${message.author.id}) sent :\``)
-        law_backup_channel.send(Util.removeMentions(message.content))
+        if (message.content.length !== 0) {
+            law_backup_channel.send(Util.removeMentions(message.content))
+        }
+        //todo : save attachements
         //todo : save edits and reactions
         if (message.channel.id === bill_channel_id) {
             const must_contain = ["[bill vote]", "[bill result]", "aye", "nay", "yes", "no"]
