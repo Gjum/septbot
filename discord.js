@@ -484,7 +484,7 @@ function bindEvents(bot, key) {
         } else if (private_message) {
             await send_message_in_relay(private_message)
         } else if (sent_private_message) {
-            await send_message_in_relay(sent_private_message)
+            await send_message_in_relay(sent_private_message, true)
         } else if (ignoring && lastDMSentToPlayer) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === lastDMSentToPlayer) {
@@ -523,13 +523,17 @@ function bindEvents(bot, key) {
             last_invite_channel.send(never_played_before[0])
         }
 
-        async function send_message_in_relay(msg) {
+        async function send_message_in_relay(msg, self = false) {
             let channel_exists = false;
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === msg[1]) {
                     let player_channel = client.channels.cache.get(line.split(" ")[0]);
                     if (player_channel) {
-                        player_channel.send(`[**${msg[1]}**] ${Util.removeMentions(msg[2])}`);
+                        if (self) {
+                            player_channel.send(`**-->** ${Util.removeMentions(msg[2])}`);
+                        } else {
+                            player_channel.send(`[**${msg[1]}**] ${Util.removeMentions(msg[2])}`);
+                        }
                         channel_exists = true;
                     }
                 }
