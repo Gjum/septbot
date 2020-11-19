@@ -29,6 +29,9 @@ const channel_debug_id = '775163751863156757';
 const relay_category_id = '770391959432593458';
 const info_channel_id = '776520454424231937';
 const info_message_id = '776524752604364830';
+const bill_channel_id = '756568587669602401';
+const law_category_id = '756568405921759492';
+const law_backup_channel_id = '778771147536728074';
 const vcs_to_relay = [742831212711772265];
 
 
@@ -66,7 +69,7 @@ function multiBot() {
 function sendChat(msg, bot_selected = 'septbot') {
     const thisChatTimeout = Math.max(0, nextChatTs - Date.now())
     nextChatTs = Math.max(nextChatTs, Date.now()) + 1000
-    console.log("DEBUG : In SendChat")
+    console.log("DEBUG : In SendChat" + bot_selected)
     if (bots[bot_selected] === undefined) {
         console.log("undefined in sendchat :/")
     }
@@ -75,7 +78,7 @@ function sendChat(msg, bot_selected = 'septbot') {
     }, thisChatTimeout)
 }
 
-let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta, info_channel;
+let channel_local, channel_global, relay_category, channel_snitch, channel_debug, channel_local_mta, info_channel, law_category, law_backup_channel, bill_channel;
 client.on('ready', () => {
     console.log(`The discord bot logged in! Username: ${client.user.username}!`)
     client.user.setActivity("CivWiki", { type: "WATCHING"})
@@ -85,7 +88,10 @@ client.on('ready', () => {
     channel_snitch = client.channels.cache.get(channel_snitch_id);
     channel_debug = client.channels.cache.get(channel_debug_id)
     relay_category = client.channels.cache.get(relay_category_id);
+    law_category = client.channels.cache.get(law_category_id);
+    law_backup_channel = client.channels.cache.get(law_backup_channel_id);
     info_channel = client.channels.cache.get(info_channel_id);
+    bill_channel = client.channels.cache.get(bill_channel_id);
     channelDeletion.start()
     channel_debug.send("Septbot started (manual restart or crash?)")
 })
@@ -115,6 +121,22 @@ client.on('message', message => {
     if (!message.member) {
         return;
     }
+    if ((message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === law_category.id)) {
+        if (message.channel.id === law_backup_channel.id) {
+            return
+        }
+        law_backup_channel.send(`${message.author.username}:${message.author.discriminator} (${message.author.id}) sent : `)
+        law_backup_channel.send(Util.removeMentions(message.content))
+        //todo : save edits and reactions
+        if (message.channel.id === bill_channel_id) {
+            const must_contain = ["[bill vote]", "[bill result]", "aye", "nay", "yes", "no"]
+            if (!must_contain.some(v => message.content.toLowerCase().includes(v))) {
+                message.delete();
+                law_backup_channel.send(`${message.author.toString()} your message in ${message.channel.toString} does not appear to be a valid legal message. Valid messages may include \"[Bill Vote]\", \"Aye\" or \"Nay\"`)
+                return;
+            }
+        }
+    }
     if ((!(message.channel.type === "text" && message.channel.parent !== null && message.channel.parent.id === relay_category.id)
        && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id && message.channel.id !== channel_local_mta.id) || (message.member.roles.cache.some(role => role.name === 'SeptBot'))) {
         return;
@@ -132,7 +154,7 @@ client.on('message', message => {
         }
     } else if (message.channel.id === channel_global.id) {
         console.log("DEBUG : message sent in channel_global")
-        if (trusted_users.includes(parseInt(message.author.id)) && clean_lines[0] === ":") {
+        if ((trusted_users.includes(parseInt(message.author.id)) && clean_lines[0] === ":" ) ) {
             clean_lines = clean_lines.substring(1)
             for (const clean_line of clean_lines) {
                 sendChat(`/g ! ${clean_line}`)
@@ -142,7 +164,6 @@ client.on('message', message => {
                 sendChat(`/g ! ${message.author.username}: ${clean_line}`)
             }
         }
-        //message.react('✅');
     } else if (message.channel.id === channel_local_mta.id) {
         for (const clean_line of clean_lines) {
             sendChat(`${message.author.username}: ${clean_line}`, "mtatree")
@@ -542,8 +563,8 @@ function relog(key) {
             password: config[key].password,
             version: "1.16.1",
         };
-        bots[config[key].name] = mineflayer.createBot(options);
-        bindEvents(bots[config[key].name], key);
+        bots[key] = mineflayer.createBot(options);
+        bindEvents(bots[[key]], key);
     }
 }
 
