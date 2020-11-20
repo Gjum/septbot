@@ -148,6 +148,9 @@ client.on('message', message => {
        && message.channel.id !== channel_local.id && message.channel.id !== channel_global.id && message.channel.id !== channel_local_mta.id) || (message.member.roles.cache.some(role => role.name === 'SeptBot'))) {
         return;
     }
+    if (trusted_users.includes(parseInt(message.author.id)) && (message.content === (prefix + "deleterelay")) && (message.channel.parent.id === relay_category.id)) {
+        deleteRelay(message.channel);
+    }
     if (message.content[0] === prefix) return;
     if (message.author.id === client.user.id) return
     if (message.content.length > 600) {
@@ -175,8 +178,6 @@ client.on('message', message => {
         for (const clean_line of clean_lines) {
             sendChat(`${message.author.username}: ${clean_line}`, "mtatree")
         }
-    } else if (trusted_users.includes(parseInt(message.author.id)) && message.content === (prefix + "deleterelay") && message.channel.parent.id === relay_category.id) {
-        deleteRelay(message.channel);
     }
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
