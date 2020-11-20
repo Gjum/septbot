@@ -106,14 +106,18 @@ function channelDeletionDebug() {
             messages.forEach(m => {
                 if (m) {
                     if ((Date.now() - m.createdAt) / 1000 / 60 / 60 > 24) {
-                        console.log("Deleting " + c.name);
-                        deleteLineFromFile('resources/newfriend_channels.txt', c.id)
-                        c.delete();
+                        deleteRelay(c);
                     }
                 }
             })
         }).catch(console.error);
     })
+}
+
+function deleteRelay(channel){
+    console.log("Deleting " + channel.name);
+    deleteLineFromFile('resources/newfriend_channels.txt', channel.id)
+    channel.delete();
 }
 
 
@@ -130,7 +134,7 @@ client.on('message', message => {
             law_backup_channel.send(Util.removeMentions(message.content))
         }
         //todo : save attachements
-        //todo : save edits and reactions
+        //todo : log edits and reactions
         if (message.channel.id === bill_channel_id) {
             const must_contain = ["[bill vote]", "[bill result]", "aye", "nay", "yes", "no"]
             if (!must_contain.some(v => message.content.toLowerCase().includes(v))) {
@@ -171,6 +175,8 @@ client.on('message', message => {
         for (const clean_line of clean_lines) {
             sendChat(`${message.author.username}: ${clean_line}`, "mtatree")
         }
+    } else if (trusted_users.includes(parseInt(message.author.id)) && message.content === (prefix + "deleterelay") && message.channel.parent.id === relay_category.id) {
+        deleteRelay(message.channel);
     }
     fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
         if (line.split(" ")[0] === message.channel.id) {
@@ -363,7 +369,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
             }
         })
         if (i >= 7) {
-            if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 100) {
+            if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 120) {
                 sendChat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
                 lastVCBroadcast = Date.now();
             }
