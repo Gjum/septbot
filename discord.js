@@ -339,11 +339,17 @@ client.on('message', async message => {
         return sorted.join('\n');
     }
 })
+
+const justLinux = fs.readFileSync('resources/just_linux.txt').trim().split("\n");
+const recentlyResponded = {}
+
 client.on('message', message => {
     if (message.channel.type !== "text") return
     if (message.author.id === client.user.id) return
-    if (/R[o*]le *pl[a*]y[: ]*detected/i.test(message.content))
-        message.channel.send('Get on with it');
+    if (/gnu[^a-z]+plus[^a-z]+linux/i.test(message.content) && (recentlyResponded.justLinux || 0) < Date.now() - 60000) {
+        recentlyResponded.justLinux = Date.now();
+        justLinux.forEach(line => message.channel.send(line));
+    }
 })
 
 client.on('voiceStateUpdate', (oldMember, newMember) => {
