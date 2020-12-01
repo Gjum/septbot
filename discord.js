@@ -24,7 +24,7 @@ const trusted_users = [145342519784374272, 214874419301056512];
 const channel_local_id = '769382925283098634';
 const channel_local_mta_id = '775499408309354517';
 const channel_global_id = '769409279496421386';
-const channel_snitch_id = '742871763758743574';
+const channel_snitch_id = '783124480989069332';
 const channel_debug_id = '775163751863156757';
 const relay_category_id = '770391959432593458';
 const info_channel_id = '776520454424231937';
@@ -32,6 +32,7 @@ const info_message_id = '776524752604364830';
 const bill_channel_id = '756568587669602401';
 const law_category_id = '756568405921759492';
 const law_backup_channel_id = '778771147536728074';
+const CivBot_id = 614086832245964808;
 const vcs_to_relay = [742831212711772265];
 
 
@@ -41,6 +42,8 @@ let lastDMSentToPlayer = null;
 let lastVCBroadcast = null;
 let lastVCJoinBroadcasts = {};
 let last_invite_channel = null;
+let last_CivBot_message = null;
+let last_CivBot_warning = null;
 let TPS = null;
 
 let nextChatTs = 0;
@@ -163,13 +166,23 @@ client.on('message', message => {
             sendChat(`${message.author.username}: ${clean_line}`)
         }
     } else if (message.channel.id === channel_global.id) {
-        console.log("DEBUG : message sent in channel_global")
         if ((trusted_users.includes(parseInt(message.author.id)) && clean_lines[0] === ":" ) ) {
             clean_lines = clean_lines.substring(1)
             for (const clean_line of clean_lines) {
                 sendChat(`/g ! ${clean_line}`)
             }
         } else {
+            if (parseInt(message.author.id) === CivBot_id) {
+                if (last_CivBot_message != null && (Date.now() - last_CivBot_message) / 1000 <= 60) {
+                    if (!last_CivBot_warning || (Date.now() - last_CivBot_warning) / 1000 > 120) {
+                        sendChat(`/g ! Don't spam bot commands!`)
+                        last_CivBot_warning = Date.now()
+                    }
+                    return;
+                } else {
+                    last_CivBot_message = Date.now();
+                }
+            }
             for (const clean_line of clean_lines) {
                 sendChat(`/g ! ${message.author.username}: ${clean_line}`)
             }
