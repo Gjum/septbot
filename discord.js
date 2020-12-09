@@ -173,9 +173,10 @@ client.on('message', message => {
             }
         } else {
             if (parseInt(message.author.id) === CivBot_id) {
-                if (last_CivBot_message != null && (Date.now() - last_CivBot_message) / 1000 <= 60) {
+                const rate_limit = 30 ;
+                if (last_CivBot_message != null && (Date.now() - last_CivBot_message) / 1000 <= rate_limit) {
                     if (!last_CivBot_warning || (Date.now() - last_CivBot_warning) / 1000 > 120) {
-                        sendChat(`/g ! Don't spam bot commands!`)
+                        sendChat(`/g ! wait ${rate_limit} seconds between between bot commands to avoid spam!`)
                         last_CivBot_warning = Date.now()
                     }
                     return;
@@ -278,16 +279,20 @@ client.on('message', async message => {
                 }
                 let player = args[1];
                 let group_preset = args[2];
-                fs.readFileSync('resources/group_presets', 'utf-8').split(/\r?\n/).forEach(function (line) {
-                    let l = line.split(" ")
-                    let preset_line = l[0];
-                    if (group_preset === preset_line) {
-                        for (let i = 1; i < l.length; i+=2) {
-                            message.channel.send(`Invited ${player} to ${l[i]} ${l[i+1]}`)
-                            sendChat(`/nlip ${l[i]} ${player} ${l[i+1]}`)
+                let group_data = fs.readFileSync('resources/group_presets', 'utf-8').split(/\r?\n/);
+                for (let i = 0; i < group_data.length - 1; i+=2) {
+                    let line = group_data[i].split(" ")
+                    let preset_group_list = line[0];
+                    if (group_preset === preset_group_list) {
+                        for (let k = 1; k < line.length; k+=2) {
+                            message.channel.send(`Invited ${player} to ${line[k]} ${line[k+1]}`)
+                            // todo : actually check if should promote or invite..
+                            sendChat(`/nlip ${line[k]} ${player} ${line[k+1]}`)
+                            sendChat(`/nlpp ${line[k]} ${player} ${line[k+1]}`)
                         }
+                        sendChat(`/tell ${player} ${group_data[i+1]}`)
                     }
-                })
+                }
                 break
             case 'relaypurge':
                 if (!trusted_users.includes(parseInt(message.author.id))) {
@@ -504,7 +509,10 @@ function bindEvents(bot, key) {
         } else if (private_message) {
             await send_message_in_relay(private_message)
         } else if (sent_private_message) {
-            await send_message_in_relay(sent_private_message, true)
+            // todo : temporary
+            if (!sent_private_message.toString().includes("SeptBot:")) {
+                await send_message_in_relay(sent_private_message, true)
+            }
         } else if (ignoring && lastDMSentToPlayer) {
             fs.readFileSync('resources/newfriend_channels.txt', 'utf-8').split(/\r?\n/).forEach(function (line) {
                 if (line.split(" ")[1] === lastDMSentToPlayer) {
