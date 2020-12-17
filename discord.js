@@ -173,16 +173,17 @@ client.on('message', message => {
             }
         } else {
             if (parseInt(message.author.id) === CivBot_id) {
-                const rate_limit = 30 ;
-                if (last_CivBot_message != null && (Date.now() - last_CivBot_message) / 1000 <= rate_limit) {
-                    if (!last_CivBot_warning || (Date.now() - last_CivBot_warning) / 1000 > 120) {
-                        sendChat(`/g ! wait ${rate_limit} seconds between between bot commands to avoid spam!`)
-                        last_CivBot_warning = Date.now()
-                    }
-                    return;
-                } else {
-                    last_CivBot_message = Date.now();
-                }
+                return;
+                // const rate_limit = 30 ;
+                // if (last_CivBot_message != null && (Date.now() - last_CivBot_message) / 1000 <= rate_limit) {
+                //     if (!last_CivBot_warning || (Date.now() - last_CivBot_warning) / 1000 > 120) {
+                //         sendChat(`/g ! wait ${rate_limit} seconds between between bot commands to avoid spam!`)
+                //         last_CivBot_warning = Date.now()
+                //     }
+                //     return;
+                // } else {
+                //     last_CivBot_message = Date.now();
+                // }
             }
             for (const clean_line of clean_lines) {
                 sendChat(`/g ! ${message.author.username}: ${clean_line}`)
@@ -388,7 +389,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
             }
         })
         if (i >= 7) {
-            if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 120) {
+            if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 60 * 24) {
                 sendChat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
                 lastVCBroadcast = Date.now();
             }
