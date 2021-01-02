@@ -474,39 +474,40 @@ function bindEvents(bot, key) {
         } else if (death_message) {
             channel_local.send(`**${death_message[1]}** was killed by **${death_message[2]}** with ${death_message[3]}`);
         } else if (new_player) {
-            let new_channel = await createRelayChannel(null, new_player[1])
-            if (!new_channel) {
-                return
-            }
-            new_channel.setName("🟢-" + sanitizeUsernameForDiscord(new_player[1]))
-            if (Math.floor(Math.random() * 4) + 1 === 1) {
-                await sleep(Math.floor(Math.random() * (30 - 10) + 10) * 1000)
-            }
-            let prompt;
-            if (Math.floor(Math.random() * 10) + 1 !== 3) {
-                await new_channel.send("This relay was randomly selected as __serious__. Please do not harass the newfriend.");
-                prompt = getRandomLine('resources/message_prompts');
-            } else {
-                await new_channel.send("This relay was randomly selected as __meme__.");
-                prompt = getRandomLine('resources/message_prompts_meme');
-            }
-            const wait_times = [0, 15, 30] // in seconds
-            let messsage_wait_time = wait_times[Math.floor(Math.random() * wait_times.length)];
-            if (messsage_wait_time !== 0 ) {
-                await new_channel.send(`waiting ${messsage_wait_time} seconds before sending prompt...`)
-            }
-            setTimeout(async function(){
-                sendChat(`/tell ${new_player[1]} ${prompt}`);
-                await new_channel.send(`\`${prompt}\``);
-                // To Do : only send this reminder if the newfriend has not responded already
-                if (Math.floor(Math.random() * 2) + 1 !== 1) {
-                    setTimeout(async function(){
-                        let reminder = `If you need any help ${new_player[1]} you can respond to messages with /r`
-                        await sendChat(`/tell ${new_player[1]} ${reminder}`);
-                        await new_channel.send(`\`${reminder}\``);
-                    }, 5*1000);
-                }
-            }, messsage_wait_time * 1000)
+            return;
+            // let new_channel = await createRelayChannel(null, new_player[1])
+            // if (!new_channel) {
+            //     return
+            // }
+            // new_channel.setName("🟢-" + sanitizeUsernameForDiscord(new_player[1]))
+            // if (Math.floor(Math.random() * 4) + 1 === 1) {
+            //     await sleep(Math.floor(Math.random() * (30 - 10) + 10) * 1000)
+            // }
+            // let prompt;
+            // if (Math.floor(Math.random() * 10) + 1 !== 3) {
+            //     await new_channel.send("This relay was randomly selected as __serious__. Please do not harass the newfriend.");
+            //     prompt = getRandomLine('resources/message_prompts');
+            // } else {
+            //     await new_channel.send("This relay was randomly selected as __meme__.");
+            //     prompt = getRandomLine('resources/message_prompts_meme');
+            // }
+            // const wait_times = [0, 15, 30] // in seconds
+            // let messsage_wait_time = wait_times[Math.floor(Math.random() * wait_times.length)];
+            // if (messsage_wait_time !== 0 ) {
+            //     await new_channel.send(`waiting ${messsage_wait_time} seconds before sending prompt...`)
+            // }
+            // setTimeout(async function(){
+            //     sendChat(`/tell ${new_player[1]} ${prompt}`);
+            //     await new_channel.send(`\`${prompt}\``);
+            //     // To Do : only send this reminder if the newfriend has not responded already
+            //     if (Math.floor(Math.random() * 2) + 1 !== 1) {
+            //         setTimeout(async function(){
+            //             let reminder = `If you need any help ${new_player[1]} you can respond to messages with /r`
+            //             await sendChat(`/tell ${new_player[1]} ${reminder}`);
+            //             await new_channel.send(`\`${reminder}\``);
+            //         }, 5*1000);
+            //     }
+            // }, messsage_wait_time * 1000)
         } else if (private_message) {
             await send_message_in_relay(private_message)
         } else if (sent_private_message) {
