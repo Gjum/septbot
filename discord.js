@@ -390,7 +390,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
         })
         if (i >= 7) {
             if (!lastVCBroadcast || (Date.now() - lastVCBroadcast) / 1000 / 60 > 60 * 24) {
-                sendChat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
+                //sendChat(`/g ! Join the ${i} players currently in the ${channel_local.guild.name} voice chat! https://discord.gg/pkBScuu`)
                 lastVCBroadcast = Date.now();
             }
         }
