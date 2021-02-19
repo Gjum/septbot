@@ -589,9 +589,13 @@ function bindEvents(bot, key) {
                 message += online_players[player]['username'].replace('_', "\\_") + '\n';
             }
         }
-        info_channel.messages.fetch(info_message_id).then(msg => {
-            msg.edit(message)
-        })
+        if (info_channel === undefined) {
+            console.log("error : info channel undefined")
+        } else {
+            info_channel.messages.fetch(info_message_id).then(msg => {
+                msg.edit(message)
+            })
+        }
     }
 }
 
