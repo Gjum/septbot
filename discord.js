@@ -585,8 +585,10 @@ function bindEvents(bot, key) {
             message += "```Server or bot is currently offline :(```"
         } else {
             message += "TPS: " + TPS + "\n" + "**" + Object.keys(online_players).length + " online players**\n"
-            for (let player in online_players) {
-                message += online_players[player]['username'].replace('_', "\\_") + '\n';
+            const online_players_sorted = Object.values(online_players).map(p => p.username)
+            online_players_sorted.sort((a,b) => a.toLowerCase().replace('_','').localeCompare(b.toLowerCase().replace('_','')))
+            for (const name of online_players_sorted) {
+                message += name.replace('_', "\\_") + '\n';
             }
         }
         if (info_channel === undefined) {
